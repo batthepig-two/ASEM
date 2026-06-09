@@ -1,0 +1,641 @@
+// ══════════════════════════════════════════════════════════════
+//  ASEM — ARK Stat & Evolution Manager
+//  All data stored locally in your browser (localStorage)
+// ══════════════════════════════════════════════════════════════
+
+// ─── ARK DINO DATABASE ────────────────────────────────────────
+// Base stats: [Health, Stamina, Oxygen, Food, Weight, Melee, Speed, Torpor]
+// Values are base + per-level-wild increase pairs
+// Format: { B: base, W: wildPerLvl, T: tamingBonus (mult), D: domesticPerLvl }
+// Source: wiki.gg/ark, community spreadsheets
+
+const STATS = ['Health','Stamina','Oxygen','Food','Weight','Melee','Speed','Torpor'];
+const STAT_KEYS = ['health','stamina','oxygen','food','weight','melee','speed','torpor'];
+
+// Each dino: { name, base:[hp,st,ox,fo,we,me,sp,to], wild:[...], dom:[...], tameBonus:[...] }
+// base = level 1 tamed value, wild = per wild level increase, dom = per dom level increase
+// tameBonus = taming effectiveness bonus multiplier per stat (0 = none)
+const DINOS = [
+  // ─ A ─
+  { name:"Achatina",        base:[200,200,150,1500,75,0,100,250],        wild:[40,20,15,150,1.5,0,1,7.5],       dom:[0.2,0.2,0,0,0.04,0.05,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Allosaurus",      base:[1200,420,150,3000,350,100,100,1250],   wild:[240,42,15,300,7,10,1,62.5],      dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Amargasaurus",    base:[1200,300,150,3500,380,100,100,450],    wild:[240,30,15,350,7.6,10,1,22.5],    dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Andrewsarchus",   base:[650,300,150,2000,280,100,100,475],     wild:[130,30,15,200,5.6,20,1,23.75],   dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Ankylosaurus",    base:[700,210,150,3000,500,150,100,500],     wild:[140,21,15,300,10,15,1,25],       dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Araneo",          base:[200,100,150,900,85,100,100,350],       wild:[40,10,15,90,1.7,10,1,17.5],     dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Archaeopteryx",   base:[100,200,150,900,25,100,100,150],       wild:[20,20,15,90,0.5,10,1,7.5],      dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Argentavis",      base:[1175,420,150,3600,400,150,100,700],    wild:[235,42,15,360,8,15,1,35],       dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Astrocetus",      base:[2200,500,150,8000,1000,100,100,750],   wild:[440,50,15,800,20,10,1,37.5],    dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Astrodelphis",    base:[560,480,150,3000,255,100,100,500],     wild:[112,48,15,300,5.1,10,1,25],     dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Otter",           base:[125,200,150,1200,25,100,100,200],      wild:[25,20,15,120,0.5,10,1,10],      dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  // ─ B ─
+  { name:"Baryonyx",        base:[600,270,150,3000,250,175,100,525],     wild:[120,27,15,300,5,17.5,1,26.25],  dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Basilisk",        base:[1875,600,150,9000,450,100,100,1200],   wild:[375,60,15,900,9,10,1,60],       dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Basilosaurus",    base:[4000,800,150,12000,600,200,100,2000],  wild:[800,80,15,1200,12,20,1,100],    dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Beelzebufo",      base:[340,200,150,1800,160,100,100,420],     wild:[68,20,15,180,3.2,10,1,21],      dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Brontosaurus",    base:[5400,1200,150,10000,1500,200,100,2800],wild:[1080,120,15,1000,30,20,1,140],  dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  // ─ C ─
+  { name:"Caiman",          base:[750,300,150,2000,300,100,100,550],     wild:[150,30,15,200,6,10,1,27.5],     dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Carbonemys",      base:[600,150,150,3000,300,75,100,420],      wild:[120,15,15,300,6,7.5,1,21],      dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Carno",           base:[700,420,150,3000,250,120,100,525],     wild:[140,42,15,300,5,12,1,26.25],    dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Castoroides",     base:[600,300,150,3000,400,100,100,420],     wild:[120,30,15,300,8,10,1,21],       dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Coelacanth",      base:[200,200,150,1200,50,100,100,150],      wild:[40,20,15,120,1,10,1,7.5],       dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Compy",           base:[70,200,150,900,25,100,100,105],        wild:[14,20,15,90,0.5,10,1,5.25],     dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Carcharodontosaurus",base:[2200,600,150,4000,550,200,100,1400],wild:[440,60,15,400,11,20,1,70],      dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  // ─ D ─
+  { name:"Daeodon",         base:[2200,420,150,12000,350,100,100,1250],  wild:[440,42,15,1200,7,10,1,62.5],    dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Deinonychus",     base:[335,270,150,1500,195,100,100,525],     wild:[67,27,15,150,3.9,10,1,26.25],   dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Dilophosaur",     base:[200,200,150,1500,100,100,100,250],     wild:[40,20,15,150,2,10,1,12.5],      dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Dimorphodon",     base:[175,200,150,900,45,100,100,225],       wild:[35,20,15,90,0.9,10,1,11.25],    dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Diplocaulus",     base:[175,200,150,1500,75,100,100,225],      wild:[35,20,15,150,1.5,10,1,11.25],   dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Diplodocus",      base:[2400,660,150,8000,800,100,100,1050],   wild:[480,66,15,800,16,10,1,52.5],    dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Direbear",        base:[1000,420,150,4500,600,130,100,700],    wild:[200,42,15,450,12,13,1,35],      dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Direwolf",        base:[500,420,150,3000,175,100,100,420],     wild:[100,42,15,300,3.5,10,1,21],     dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Dodo",            base:[75,200,150,900,25,100,100,100],        wild:[15,20,15,90,0.5,10,1,5],        dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Doedicurus",      base:[1000,200,150,3000,500,100,100,700],    wild:[200,20,15,300,10,10,1,35],      dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Dung Beetle",     base:[200,200,150,1800,75,100,100,250],      wild:[40,20,15,180,1.5,10,1,12.5],    dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  // ─ E ─
+  { name:"Eagle (Equus)",   base:[400,300,150,2500,250,100,100,350],     wild:[80,30,15,250,5,10,1,17.5],      dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Electrophorus",   base:[300,200,150,1500,100,100,100,300],     wild:[60,20,15,150,2,10,1,15],        dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Enforcer",        base:[525,300,150,2000,180,100,100,550],     wild:[105,30,15,200,3.6,10,1,27.5],   dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0,0,0,0,0,0,0,0] },
+  { name:"Equus",           base:[400,300,150,2500,250,100,100,350],     wild:[80,30,15,250,5,10,1,17.5],      dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  // ─ F ─
+  { name:"Featherlight",    base:[175,200,150,900,45,100,100,225],       wild:[35,20,15,90,0.9,10,1,11.25],    dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Fjordhawk",       base:[215,270,150,1200,55,100,100,300],      wild:[43,27,15,120,1.1,10,1,15],      dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  // ─ G ─
+  { name:"Gallimimus",      base:[400,750,150,3000,200,100,100,400],     wild:[80,75,15,300,4,10,1,20],        dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Gasbags",         base:[1090,350,150,4500,1000,100,100,700],   wild:[218,35,15,450,20,10,1,35],      dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Giant Bee",       base:[185,200,150,3000,100,100,100,210],     wild:[37,20,15,300,2,10,1,10.5],      dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Giganotosaurus",  base:[80000,2100,150,40000,700,100,100,10000],wild:[16000,210,15,4000,14,5,1,500], dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Gigantopithecus", base:[520,420,150,3000,200,100,100,550],     wild:[104,42,15,300,4,10,1,27.5],     dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Glowbug",         base:[175,200,150,900,45,100,100,225],       wild:[35,20,15,90,0.9,10,1,11.25],    dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Glowtail",        base:[175,200,150,900,45,100,100,225],       wild:[35,20,15,90,0.9,10,1,11.25],    dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  // ─ H ─
+  { name:"Hesperornis",     base:[200,300,150,1200,50,100,100,250],      wild:[40,30,15,120,1,10,1,12.5],      dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Hyaenodon",       base:[300,300,150,1800,150,100,100,350],     wild:[60,30,15,180,3,10,1,17.5],      dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  // ─ I ─
+  { name:"Ichthyornis",     base:[175,300,150,900,35,100,100,200],       wild:[35,30,15,90,0.7,10,1,10],       dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Ichthyosaurus",   base:[300,1200,150,3000,100,100,100,300],    wild:[60,120,15,300,2,10,1,15],       dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Iguanodon",       base:[500,420,150,4500,250,100,100,525],     wild:[100,42,15,450,5,10,1,26.25],    dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  // ─ J-K ─
+  { name:"Jerboa",          base:[100,200,150,1800,50,100,100,100],      wild:[20,20,15,180,1,10,1,5],         dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Karkinos",        base:[1500,400,150,5000,750,125,100,900],    wild:[300,40,15,500,15,12.5,1,45],    dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Kaprosuchus",     base:[750,450,150,3000,300,150,100,700],     wild:[150,45,15,300,6,15,1,35],       dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  // ─ L ─
+  { name:"Leedsichthys",    base:[7200,800,150,8000,700,100,100,2000],   wild:[1440,80,15,800,14,10,1,100],    dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Liopleurodon",    base:[800,600,150,4000,300,100,100,600],     wild:[160,60,15,400,6,10,1,30],       dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Lymantria",       base:[800,400,150,4000,200,100,100,600],     wild:[160,40,15,400,4,10,1,30],       dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  // ─ M ─
+  { name:"Maewing",         base:[750,420,150,5000,350,100,100,700],     wild:[150,42,15,500,7,10,1,35],       dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Magmasaur",       base:[1600,500,150,5000,550,100,100,1000],   wild:[320,50,15,500,11,10,1,50],      dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Mammoth",         base:[2000,500,150,6000,500,100,100,1250],   wild:[400,50,15,600,10,10,1,62.5],    dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Manta",           base:[250,300,150,1500,75,100,100,300],      wild:[50,30,15,150,1.5,10,1,15],      dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Managarmr",       base:[1700,800,150,7500,750,100,100,1200],   wild:[340,80,15,750,15,10,1,60],      dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Megachelon",      base:[13500,1200,150,12000,5000,100,100,4500],wild:[2700,120,15,1200,100,10,1,225],dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Megalania",       base:[1200,450,150,4000,300,150,100,700],    wild:[240,45,15,400,6,15,1,35],       dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Megaloceros",     base:[650,300,150,4000,300,100,100,650],     wild:[130,30,15,400,6,10,1,32.5],     dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Megalodon",       base:[1100,600,150,5000,350,100,100,1000],   wild:[220,60,15,500,7,10,1,50],       dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Megalosaurus",    base:[1000,420,150,3600,250,100,100,700],    wild:[200,42,15,360,5,10,1,35],       dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Megatherium",     base:[1000,420,150,4000,600,100,100,700],    wild:[200,42,15,400,12,10,1,35],      dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Mek",             base:[2000,0,0,0,1000,100,100,800],          wild:[400,0,0,0,20,10,1,40],          dom:[0.2,0,0,0,0.04,0.17,0,0],      tameBonus:[0,0,0,0,0,0,0,0] },
+  { name:"Mesopithecus",    base:[200,200,150,900,50,100,100,200],       wild:[40,20,15,90,1,10,1,10],         dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Microraptor",     base:[150,200,150,900,50,100,100,175],       wild:[30,20,15,90,1,10,1,8.75],       dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Morellatops",     base:[400,300,150,4500,200,100,100,350],     wild:[80,30,15,450,4,10,1,17.5],      dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Mosasaurus",      base:[8000,1200,150,20000,1000,100,100,4000],wild:[1600,120,15,2000,20,10,1,200],  dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  // ─ N ─
+  { name:"Nameless",        base:[800,300,150,3000,200,100,100,600],     wild:[160,30,15,300,4,10,1,30],       dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0,0,0,0,0,0,0,0] },
+  // ─ O ─
+  { name:"Oviraptor",       base:[200,200,150,900,75,100,100,200],       wild:[40,20,15,90,1.5,10,1,10],       dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Ovis",            base:[200,200,150,3000,100,100,100,200],     wild:[40,20,15,300,2,10,1,10],        dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  // ─ P ─
+  { name:"Pachycephalosaurus",base:[350,300,150,1500,200,100,100,450],   wild:[70,30,15,150,4,10,1,22.5],      dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Pachy",           base:[350,300,150,1500,200,100,100,450],     wild:[70,30,15,150,4,10,1,22.5],      dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Paraceratherium",  base:[2700,600,150,8000,1200,100,100,1400], wild:[540,60,15,800,24,10,1,70],      dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Parasaur",        base:[400,240,150,3000,200,100,100,400],     wild:[80,24,15,300,4,10,1,20],        dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Pegomastax",      base:[200,300,150,900,50,100,100,200],       wild:[40,30,15,90,1,10,1,10],         dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Pelagornis",      base:[400,600,150,2000,100,100,100,375],     wild:[80,60,15,200,2,10,1,18.75],     dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Phoenix",         base:[3800,500,150,8000,1000,100,100,1500],  wild:[760,50,15,800,20,10,1,75],      dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Phiomia",         base:[700,300,150,4500,300,100,100,700],     wild:[140,30,15,450,6,10,1,35],       dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Plesiosaur",      base:[5400,1200,150,12000,800,100,100,2800], wild:[1080,120,15,1200,16,10,1,140],  dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Procoptodon",     base:[850,450,150,4000,500,100,100,700],     wild:[170,45,15,400,10,10,1,35],      dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Pteranodon",      base:[350,1350,150,1800,75,100,100,300],     wild:[70,135,15,180,1.5,10,1,15],     dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Pulmonoscorpius", base:[600,450,150,3000,175,100,100,500],     wild:[120,45,15,300,3.5,10,1,25],     dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Purlovia",        base:[400,350,150,2000,150,100,100,400],     wild:[80,35,15,200,3,10,1,20],        dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  // ─ Q ─
+  { name:"Quetzal",         base:[2500,1200,150,10000,750,100,100,1500], wild:[500,120,15,1000,15,10,1,75],    dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  // ─ R ─
+  { name:"Raptor",          base:[450,420,150,3000,100,100,100,525],     wild:[90,42,15,300,2,10,1,26.25],     dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Ravager",         base:[595,300,150,2000,220,100,100,600],     wild:[119,30,15,200,4.4,10,1,30],     dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Reaper King",     base:[3780,600,150,6000,550,100,100,2000],   wild:[756,60,15,600,11,10,1,100],     dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0,0,0,0,0,0,0,0] },
+  { name:"Rex",             base:[2000,900,150,8000,400,100,100,2000],   wild:[400,90,15,800,8,10,1,100],      dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Rhyniognatha",    base:[750,400,150,3000,200,100,100,600],     wild:[150,40,15,300,4,10,1,30],       dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Rock Drake",      base:[1460,500,150,6000,500,100,100,1000],   wild:[292,50,15,600,10,10,1,50],      dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0,0,0,0,0,0,0,0] },
+  { name:"Rock Elemental",  base:[6200,400,150,4000,3000,100,100,4000],  wild:[1240,40,15,400,60,10,1,200],    dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  // ─ S ─
+  { name:"Sabertooth",      base:[500,420,150,3000,200,100,100,525],     wild:[100,42,15,300,4,10,1,26.25],    dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Sarco",           base:[600,300,150,3000,300,100,100,600],     wild:[120,30,15,300,6,10,1,30],       dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Shadowmane",      base:[1200,600,150,5000,400,100,100,850],    wild:[240,60,15,500,8,10,1,42.5],     dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0,0,0,0,0,0,0,0] },
+  { name:"Shinehorn",       base:[175,200,150,900,45,100,100,225],       wild:[35,20,15,90,0.9,10,1,11.25],    dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Snow Owl",        base:[1050,1200,150,3600,400,100,100,700],   wild:[210,120,15,360,8,10,1,35],      dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Spino",           base:[1200,600,150,5000,400,100,100,875],    wild:[240,60,15,500,8,10,1,43.75],    dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Stego",           base:[600,300,150,6000,500,100,100,600],     wild:[120,30,15,600,10,10,1,30],      dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Stryder",         base:[1000,0,0,0,1500,100,100,600],          wild:[200,0,0,0,30,10,1,30],          dom:[0.2,0,0,0,0.04,0.17,0,0],      tameBonus:[0,0,0,0,0,0,0,0] },
+  // ─ T ─
+  { name:"Tapejara",        base:[450,1200,150,3000,175,100,100,425],    wild:[90,120,15,300,3.5,10,1,21.25],  dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Terror Bird",     base:[500,750,150,2000,200,100,100,500],     wild:[100,75,15,200,4,10,1,25],       dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Therizinosaurus", base:[1400,600,150,7000,650,100,100,1000],   wild:[280,60,15,700,13,10,1,50],      dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Thorny Dragon",   base:[300,300,150,3000,200,100,100,350],     wild:[60,30,15,300,4,10,1,17.5],      dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Thylacoleo",      base:[900,450,150,3000,350,150,100,700],     wild:[180,45,15,300,7,15,1,35],       dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Titanoboa",       base:[600,600,150,3000,200,100,100,600],     wild:[120,60,15,300,4,10,1,30],       dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Titanosaur",      base:[250000,2000,150,20000,5000,100,100,80000],wild:[50000,200,15,2000,100,10,1,4000],dom:[0,0,0,0,0,0,0,0],          tameBonus:[0,0,0,0,0,0,0,0] },
+  { name:"Toad (Beelzebufo)",base:[340,200,150,1800,160,100,100,420],   wild:[68,20,15,180,3.2,10,1,21],      dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Triceratops",     base:[700,300,150,6000,300,100,100,700],     wild:[140,30,15,600,6,10,1,35],       dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Tropeognathus",   base:[600,1200,150,4000,300,100,100,550],    wild:[120,120,15,400,6,10,1,27.5],    dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Tusoteuthis",     base:[5400,800,150,10000,500,100,100,2800],  wild:[1080,80,15,1000,10,10,1,140],   dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  // ─ U-V ─
+  { name:"Unicorn",         base:[400,300,150,2500,250,100,100,350],     wild:[80,30,15,250,5,10,1,17.5],      dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Velonasaur",      base:[1000,400,150,4000,300,100,100,700],    wild:[200,40,15,400,6,10,1,35],       dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Voidwyrm",        base:[2000,700,150,6000,500,100,100,1400],   wild:[400,70,15,600,10,10,1,70],      dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0,0,0,0,0,0,0,0] },
+  // ─ W-Z ─
+  { name:"Wyvern (Fire)",   base:[1200,600,150,5000,500,100,100,850],    wild:[240,60,15,500,10,10,1,42.5],    dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0,0,0,0,0,0,0,0] },
+  { name:"Wyvern (Lightning)",base:[1200,600,150,5000,500,100,100,850], wild:[240,60,15,500,10,10,1,42.5],    dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0,0,0,0,0,0,0,0] },
+  { name:"Wyvern (Poison)", base:[1200,600,150,5000,500,100,100,850],    wild:[240,60,15,500,10,10,1,42.5],    dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0,0,0,0,0,0,0,0] },
+  { name:"Wyvern (Ice)",    base:[1200,600,150,5000,500,100,100,850],    wild:[240,60,15,500,10,10,1,42.5],    dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0,0,0,0,0,0,0,0] },
+  { name:"Yutyrannus",      base:[2400,600,150,6000,600,100,100,1500],   wild:[480,60,15,600,12,10,1,75],      dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
+  { name:"Zombie Fire Wyvern",base:[1200,600,150,5000,500,100,100,850], wild:[240,60,15,500,10,10,1,42.5],    dom:[0.2,0.2,0,0,0.04,0.17,0,0],    tameBonus:[0,0,0,0,0,0,0,0] },
+];
+// dedupe by name
+const DINO_MAP = {};
+DINOS.forEach(d => { DINO_MAP[d.name] = d; });
+const UNIQUE_DINOS = Object.values(DINO_MAP).sort((a,b) => a.name.localeCompare(b.name));
+
+// ─── STORAGE ──────────────────────────────────────────────────
+const STORAGE_KEY = 'asem_lines_v2';
+function loadLines() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch { return []; }
+}
+function saveLines() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(lines));
+}
+
+// ─── STATE ────────────────────────────────────────────────────
+let lines = loadLines();
+if (!lines.length) lines = [newLine()];
+
+function newLine() {
+  return {
+    id: Date.now() + Math.random(),
+    name: 'New Breeding Line',
+    dino: '',
+    targetStat: 'Melee',
+    fatherStats: {health:0,stamina:0,oxygen:0,food:0,weight:0,melee:0},
+    motherStats: {health:0,stamina:0,oxygen:0,food:0,weight:0,melee:0},
+    targets: {
+      health:  {fM:0,fF:0,mM:0,mF:0},
+      stamina: {fM:0,fF:0,mM:0,mF:0},
+      oxygen:  {fM:0,fF:0,mM:0,mF:0},
+      food:    {fM:0,fF:0,mM:0,mF:0},
+      weight:  {fM:0,fF:0,mM:0,mF:0},
+      melee:   {fM:0,fF:0,mM:0,mF:0},
+    },
+    checkVal: '',
+    mutStack: 0,
+    mutMax: 20,
+    notes: '',
+    collapsed: false,
+  };
+}
+
+// ─── PAGE SWITCHING ───────────────────────────────────────────
+function switchPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  document.querySelector(`.nav-tab[data-page="${id}"]`).classList.add('active');
+}
+
+// ─── HELPER ───────────────────────────────────────────────────
+function el(tag, cls, html) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (html !== undefined) e.innerHTML = html;
+  return e;
+}
+function qs(sel, root) { return (root||document).querySelector(sel); }
+
+// ─── RENDER MUTATION HELPER ───────────────────────────────────
+function renderLines() {
+  const container = document.getElementById('lines-container');
+  container.innerHTML = '';
+  lines.forEach(line => container.appendChild(buildLineCard(line)));
+}
+
+function buildLineCard(line) {
+  const card = el('div','line-card');
+  card.dataset.id = line.id;
+
+  // ── Header ──
+  const hdr = el('div','line-header');
+  const left = el('div','line-header-left');
+
+  // collapse btn
+  const colBtn = el('button','collapse-btn', line.collapsed ? '▶' : '▼');
+  if (line.collapsed) colBtn.classList.add('collapsed');
+  colBtn.title = 'Collapse/Expand';
+  colBtn.onclick = () => {
+    line.collapsed = !line.collapsed;
+    saveLines();
+    renderLines();
+  };
+
+  const titleEl = el('span','line-title', line.name || 'Breeding Line');
+  titleEl.contentEditable = true;
+  titleEl.spellcheck = false;
+  titleEl.title = 'Click to rename';
+  titleEl.oninput = () => { line.name = titleEl.innerText.trim(); saveLines(); };
+
+  left.appendChild(colBtn);
+  left.appendChild(titleEl);
+
+  const delBtn = el('button','btn btn-danger btn-sm','🗑');
+  delBtn.title = 'Delete this line';
+  delBtn.onclick = () => {
+    if (lines.length === 1) { lines = [newLine()]; } else { lines = lines.filter(l => l.id !== line.id); }
+    saveLines(); renderLines();
+  };
+
+  hdr.appendChild(left);
+  hdr.appendChild(delBtn);
+  card.appendChild(hdr);
+
+  // ── Body ──
+  const body = el('div','line-body');
+  if (line.collapsed) {
+    body.style.display = 'none';
+    card.appendChild(body);
+    return card;
+  }
+
+  // Dino picker
+  body.appendChild(buildDinoPicker(line));
+
+  // Target stat selector
+  const tsRow = el('div','target-stat-row');
+  tsRow.innerHTML = '<label>Mutation Target Stat:</label>';
+  const tsSel = el('select','');
+  ['Health','Stamina','Oxygen','Food','Weight','Melee'].forEach(s => {
+    const o = el('option','',s); o.value = s;
+    if (s === line.targetStat) o.selected = true;
+    tsSel.appendChild(o);
+  });
+  tsSel.onchange = () => { line.targetStat = tsSel.value; saveLines(); renderLines(); };
+  tsRow.appendChild(tsSel);
+  body.appendChild(tsRow);
+
+  // Parent stats
+  body.appendChild(buildStatBlock(line, 'FATHER STATS', 'fatherStats'));
+  body.appendChild(buildStatBlock(line, 'MOTHER STATS', 'motherStats'));
+
+  // Mutation targets (+2)
+  body.appendChild(buildTargets(line));
+
+  // Mutation check
+  body.appendChild(buildMutCheck(line));
+
+  // Mutation stack
+  body.appendChild(buildStack(line));
+
+  // Notes
+  const noteWrap = el('div','notes-wrap');
+  const noteTa = el('textarea','');
+  noteTa.placeholder = 'e.g. Gen 5 melee line, keep babies above 350…';
+  noteTa.value = line.notes || '';
+  noteTa.oninput = () => { line.notes = noteTa.value; saveLines(); };
+  noteWrap.appendChild(noteTa);
+  body.appendChild(noteWrap);
+
+  card.appendChild(body);
+  return card;
+}
+
+function buildDinoPicker(line) {
+  const wrap = el('div','');
+
+  const sw = el('div','dino-search-wrap');
+  const si = el('input','');
+  si.type = 'text';
+  si.placeholder = 'Search dinos…';
+  si.value = '';
+  const ico = el('span','search-icon','🔍');
+  sw.appendChild(ico);
+  sw.appendChild(si);
+  wrap.appendChild(sw);
+
+  const grid = el('div','dino-grid');
+  let filtered = UNIQUE_DINOS;
+
+  function renderChips() {
+    grid.innerHTML = '';
+    filtered.forEach(d => {
+      const chip = el('span','dino-chip', d.name);
+      if (line.dino === d.name) chip.classList.add('selected');
+      chip.onclick = () => {
+        line.dino = (line.dino === d.name) ? '' : d.name;
+        saveLines(); renderLines();
+      };
+      grid.appendChild(chip);
+    });
+  }
+  renderChips();
+
+  si.oninput = () => {
+    const q = si.value.toLowerCase();
+    filtered = q ? UNIQUE_DINOS.filter(d => d.name.toLowerCase().includes(q)) : UNIQUE_DINOS;
+    renderChips();
+  };
+
+  wrap.appendChild(grid);
+  return wrap;
+}
+
+function buildStatBlock(line, title, key) {
+  const sec = el('div','');
+  sec.appendChild(el('div','stat-section-title', title));
+  const grid = el('div','stat-grid');
+  const statKeys = ['health','stamina','oxygen','food','weight','melee'];
+  const labels = ['Health','Stamina','Oxygen','Food','Weight','Melee'];
+  statKeys.forEach((sk, i) => {
+    const f = el('div','stat-field');
+    f.appendChild(el('label','',labels[i]));
+    const inp = el('input','');
+    inp.type = 'number'; inp.min = '0';
+    inp.value = line[key][sk] || 0;
+    inp.oninput = () => { line[key][sk] = +inp.value; saveLines(); };
+    f.appendChild(inp);
+    grid.appendChild(f);
+  });
+  sec.appendChild(grid);
+  return sec;
+}
+
+function buildTargets(line) {
+  const sec = el('div','');
+  sec.appendChild(el('div','stat-section-title', 'MUTATION TARGETS (+2 LEVELS)'));
+  const grid = el('div','targets-grid');
+  const statKeys = ['health','stamina','oxygen','food','weight','melee'];
+  const labels = ['Health','Stamina','Oxygen','Food','Weight','Melee'];
+  statKeys.forEach((sk, i) => {
+    const ti = el('div','target-item');
+    const isT = line.targetStat.toLowerCase() === sk;
+    if (isT) ti.classList.add('is-target');
+
+    const lbl = el('div','target-label');
+    lbl.innerHTML = `${labels[i]} <span class="target-star">★</span>`;
+    ti.appendChild(lbl);
+
+    const ctrl = el('div','target-controls');
+    // ♂ – val –
+    ctrl.innerHTML = `<span class="gender">♂</span>`;
+    const fMinus = el('button','btn btn-icon btn-sm','–');
+    const fVal = el('input','target-val');
+    fVal.type='number'; fVal.min='0';
+    fVal.value = line.targets[sk].fM || 0;
+    const fPlus = el('button','btn btn-icon btn-sm','+');
+
+    fMinus.onclick = () => { line.targets[sk].fM = Math.max(0,(+fVal.value||0)-1); fVal.value=line.targets[sk].fM; saveLines(); };
+    fPlus.onclick  = () => { line.targets[sk].fM = (+fVal.value||0)+1; fVal.value=line.targets[sk].fM; saveLines(); };
+    fVal.oninput   = () => { line.targets[sk].fM = +fVal.value; saveLines(); };
+
+    ctrl.appendChild(fMinus); ctrl.appendChild(fVal); ctrl.appendChild(fPlus);
+    ctrl.innerHTML += ` <span class="gender">♀</span>`;
+
+    const mMinus = el('button','btn btn-icon btn-sm','–');
+    const mVal = el('input','target-val');
+    mVal.type='number'; mVal.min='0';
+    mVal.value = line.targets[sk].mM || 0;
+    const mPlus = el('button','btn btn-icon btn-sm','+');
+
+    mMinus.onclick = () => { line.targets[sk].mM = Math.max(0,(+mVal.value||0)-1); mVal.value=line.targets[sk].mM; saveLines(); };
+    mPlus.onclick  = () => { line.targets[sk].mM = (+mVal.value||0)+1; mVal.value=line.targets[sk].mM; saveLines(); };
+    mVal.oninput   = () => { line.targets[sk].mM = +mVal.value; saveLines(); };
+
+    ctrl.appendChild(mMinus); ctrl.appendChild(mVal); ctrl.appendChild(mPlus);
+
+    ti.appendChild(ctrl);
+    grid.appendChild(ti);
+  });
+  sec.appendChild(grid);
+  return sec;
+}
+
+function buildMutCheck(line) {
+  const sec = el('div','mutation-check');
+  const tStat = line.targetStat || 'Melee';
+  sec.appendChild(el('div','mutation-check-title', `Baby ${tStat} Stat — Is it a Mutation?`));
+
+  const row = el('div','check-row');
+  const inp = el('input','');
+  inp.type='number'; inp.placeholder=`Enter baby's ${tStat} level…`;
+  inp.value = line.checkVal || '';
+
+  const btn = el('button','btn btn-primary','Check');
+  const res = el('div','check-result','');
+
+  function check() {
+    const val = +inp.value;
+    if (!val && val !== 0) { res.className='check-result'; return; }
+    // Get parent max in target stat
+    const sk = tStat.toLowerCase();
+    const fStat = +(line.fatherStats[sk]||0);
+    const mStat = +(line.motherStats[sk]||0);
+    const parentMax = Math.max(fStat, mStat);
+    const isMut = val > parentMax + 0.5; // +2 levels shows as > parent
+    if (isMut) {
+      res.className = 'check-result yes';
+      res.innerHTML = `✅ YES — Mutation! Baby ${tStat} ${val} > parent max ${parentMax}`;
+    } else {
+      res.className = 'check-result no';
+      res.innerHTML = `❌ No mutation. Baby ${tStat} ${val} ≤ parent max ${parentMax}`;
+    }
+    line.checkVal = inp.value;
+    saveLines();
+  }
+
+  btn.onclick = check;
+  inp.onkeydown = e => { if (e.key==='Enter') check(); };
+  inp.oninput = () => { line.checkVal = inp.value; saveLines(); };
+  row.appendChild(inp); row.appendChild(btn);
+  sec.appendChild(row);
+  sec.appendChild(res);
+  return sec;
+}
+
+function buildStack(line) {
+  const sec = el('div','stack-section');
+  const lbl = el('div','stack-label');
+  lbl.innerHTML = 'Mutation Stack <span class="stack-max">Max: </span>';
+  const maxInp = el('input','stack-max-input');
+  maxInp.type='number'; maxInp.min='1'; maxInp.value=line.mutMax||20;
+  maxInp.oninput = () => { line.mutMax = +maxInp.value||20; updateStack(); saveLines(); };
+  qs('.stack-max',lbl).appendChild(maxInp);
+  sec.appendChild(lbl);
+
+  const ctrl = el('div','stack-controls');
+  const minus = el('button','stack-btn','–');
+  const valEl = el('div','stack-val', line.mutStack||0);
+  const plus  = el('button','stack-btn','+');
+  const outOf = el('span','stack-max',' / ');
+  outOf.appendChild(document.createTextNode((line.mutMax||20)+''));
+
+  function updateStack() {
+    valEl.textContent = line.mutStack;
+    const mx = line.mutMax||20;
+    valEl.className = 'stack-val' + (line.mutStack > mx ? ' over':'');
+    outOf.textContent = ' / ' + mx;
+  }
+
+  minus.onclick = () => { line.mutStack = Math.max(0,(line.mutStack||0)-1); updateStack(); saveLines(); };
+  plus.onclick  = () => { line.mutStack = (line.mutStack||0)+1; updateStack(); saveLines(); };
+
+  ctrl.appendChild(minus); ctrl.appendChild(valEl); ctrl.appendChild(outOf); ctrl.appendChild(plus);
+  sec.appendChild(ctrl);
+  return sec;
+}
+
+// ─── STAT CALCULATOR PAGE ─────────────────────────────────────
+let calcDino = null;
+
+function renderCalc() {
+  const dinoList = document.getElementById('calc-dino-list');
+  const calcSearch = document.getElementById('calc-search');
+
+  function renderList(filter) {
+    dinoList.innerHTML = '';
+    const q = filter.toLowerCase();
+    UNIQUE_DINOS.filter(d => !q || d.name.toLowerCase().includes(q)).forEach(d => {
+      const item = el('div','calc-dino-item' + (calcDino && calcDino.name===d.name?' selected':''), d.name);
+      item.onclick = () => {
+        calcDino = d;
+        document.querySelectorAll('.calc-dino-item').forEach(x=>x.classList.remove('selected'));
+        item.classList.add('selected');
+        updateCalcRight();
+      };
+      dinoList.appendChild(item);
+    });
+  }
+  renderList('');
+  calcSearch.oninput = () => renderList(calcSearch.value);
+}
+
+function updateCalcRight() {
+  const right = document.getElementById('calc-right');
+  right.innerHTML = '';
+
+  if (!calcDino) {
+    right.innerHTML = '<div class="calc-hint">← Select a dinosaur to calculate stats</div>';
+    return;
+  }
+
+  const d = calcDino;
+  const nameEl = el('div','selected-dino-name', d.name);
+
+  // Base stats info
+  const info = el('div','calc-info');
+  info.appendChild(el('h3','','Base Stats (Lvl 1 Tamed)'));
+  info.appendChild(nameEl.cloneNode(true));
+  const bst = el('div','base-stat-table');
+  STATS.slice(0,6).forEach((s,i) => {
+    const row = el('div','base-stat-row');
+    row.innerHTML = `<span class="stat-name">${s}</span><span class="stat-val">${d.base[i]}</span>`;
+    bst.appendChild(row);
+  });
+  info.appendChild(bst);
+  right.appendChild(info);
+
+  // Calculator inputs
+  const inp = el('div','calc-inputs');
+  inp.appendChild(el('h3','','Stat Calculator'));
+
+  // Level type
+  const ltRow = el('div','level-type-row');
+  let isTamed = true;
+  const wildBtn = el('div','level-type-btn','Wild');
+  const tamedBtn = el('div','level-type-btn active','Tamed');
+  wildBtn.onclick  = () => { isTamed=false; wildBtn.classList.add('active'); tamedBtn.classList.remove('active'); recalc(); };
+  tamedBtn.onclick = () => { isTamed=true;  tamedBtn.classList.add('active'); wildBtn.classList.remove('active'); recalc(); };
+  ltRow.appendChild(wildBtn); ltRow.appendChild(tamedBtn);
+  inp.appendChild(ltRow);
+
+  // Header row
+  const hdr = el('div','calc-stat-row header');
+  ['Stat','Wild Lvl','Dom Lvl','TE%','Result'].forEach(h => hdr.appendChild(el('span','',h)));
+  inp.appendChild(hdr);
+
+  const rows = [];
+  STATS.slice(0,7).forEach((s,i) => {
+    const row = el('div','calc-stat-row');
+    const nameSpan = el('span','calc-stat-name', s);
+
+    const wIn = el('input','calc-stat-input'); wIn.type='number'; wIn.min='0'; wIn.value='0'; wIn.placeholder='0';
+    const dIn = el('input','calc-stat-input'); dIn.type='number'; dIn.min='0'; dIn.value='0'; dIn.placeholder='0';
+    const tIn = el('input','calc-stat-input'); tIn.type='number'; tIn.min='0'; tIn.max='100'; tIn.value='100'; tIn.placeholder='TE';
+
+    const resSpan = el('span','calc-result-val neutral','—');
+
+    [wIn,dIn,tIn].forEach(x => x.oninput = recalc);
+    row.appendChild(nameSpan); row.appendChild(wIn); row.appendChild(dIn); row.appendChild(tIn); row.appendChild(resSpan);
+    inp.appendChild(row);
+    rows.push({wIn,dIn,tIn,resSpan,i});
+  });
+
+  function recalc() {
+    rows.forEach(({wIn,dIn,tIn,resSpan,i}) => {
+      const wLvl = +wIn.value||0;
+      const dLvl = +dIn.value||0;
+      const te   = Math.min(100,Math.max(0,+tIn.value||100)) / 100;
+      const B  = d.base[i];
+      const Iw = d.wild[i];
+      const Id = d.dom[i];
+      const tb = d.tameBonus[i];
+
+      // ARK stat formula (tamed):
+      // V_tamed = (B + Iw*wLvl) * (1 + tb*te) * (1 + Id*dLvl)
+      let result;
+      if (isTamed) {
+        result = (B + Iw * wLvl) * (1 + tb * te) * (1 + Id * dLvl);
+      } else {
+        result = B + Iw * wLvl;
+      }
+
+      if (i === 5) { // Melee — show as percentage
+        resSpan.textContent = result.toFixed(1) + '%';
+      } else if (i === 6) { // Speed
+        resSpan.textContent = result.toFixed(1) + '%';
+      } else {
+        resSpan.textContent = Math.round(result);
+      }
+      resSpan.className = 'calc-result-val' + (result > B*2 ? ' warn' : '');
+    });
+  }
+  recalc();
+  right.appendChild(inp);
+}
+
+// ─── INIT ─────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  // Nav tabs
+  document.querySelectorAll('.nav-tab').forEach(tab => {
+    tab.onclick = () => switchPage(tab.dataset.page);
+  });
+
+  // Add line button
+  document.getElementById('add-line-btn').onclick = () => {
+    lines.push(newLine());
+    saveLines();
+    renderLines();
+  };
+
+  renderLines();
+  renderCalc();
+  updateCalcRight();
+});

@@ -1,24 +1,84 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
-    <title>ARK Mutation Helper</title>
-    <meta name="description" content="ARK Mutation Helper — built on Replit. Update this description to reflect the app." />
-    <meta name="robots" content="index, follow" />
-    <meta property="og:title" content="ARK Mutation Helper" />
-    <meta property="og:description" content="ARK Mutation Helper — built on Replit. Update this description to reflect the app." />
-    <meta property="og:type" content="website" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="ARK Mutation Helper" />
-    <meta name="twitter:description" content="ARK Mutation Helper — built on Replit. Update this description to reflect the app." />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ASEM</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+      <path d="M2 17l10 5 10-5"/>
+      <path d="M2 12l10 5 10-5"/>
+    </svg>
+    ASEM
+    <span class="nav-subtitle">ARK Stat &amp; Evolution Manager</span>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" data-page="helper">Mutation Helper</button>
+    <button class="nav-tab" data-page="calc">Stat Calculator</button>
+  </div>
+</nav>
+
+<!-- ══════════════ MUTATION HELPER PAGE ══════════════ -->
+<div class="page active" id="page-helper">
+
+  <div class="how-to">
+    <strong>How it works:</strong>
+    Enter parent stat <em>levels</em> (not values) →
+    Target column shows what to look for (+2) →
+    Type baby's stat to instantly check if it's a mutation →
+    Track stacks with the counter.
+    <strong>Everything saves automatically.</strong>
+  </div>
+
+  <div class="lines-header">
+    <h2>Breeding Lines</h2>
+  </div>
+
+  <div id="lines-container"></div>
+
+  <button class="add-line-btn" id="add-line-btn">
+    <span>+</span> Add Another Breeding Line
+  </button>
+
+</div>
+
+<!-- ══════════════ STAT CALCULATOR PAGE ══════════════ -->
+<div class="page" id="page-calc">
+
+  <div class="how-to">
+    <strong>Stat Calculator:</strong>
+    Select a dino → Enter wild levels, domestic levels, and taming effectiveness →
+    Get the final tamed stat value. Based on official ARK stat formulas.
+  </div>
+
+  <div class="calc-layout">
+
+    <!-- Left: dino list -->
+    <div class="calc-panel">
+      <h3>Select Dinosaur</h3>
+      <input class="calc-search" id="calc-search" type="text" placeholder="Search…" />
+      <div class="calc-dino-list" id="calc-dino-list"></div>
+    </div>
+
+    <!-- Right: calculator -->
+    <div class="calc-right" id="calc-right">
+      <div class="calc-hint">← Select a dinosaur to calculate stats</div>
+    </div>
+
+  </div>
+
+</div>
+
+<footer>
+  ASEM — All data stored locally in your browser · ARK: Survival Evolved &amp; Ascended
+</footer>
+
+<script src="script.js"></script>
+</body>
 </html>
