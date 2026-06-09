@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ASEM</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=wild-points-v4" />
 </head>
 <body>
 
@@ -52,10 +52,13 @@
 <div class="page" id="page-calc">
 
   <div class="how-to">
-    <strong>Stat Calculator:</strong>
-    Select a dino → Enter wild levels, domestic levels, and taming effectiveness →
-    Get the final tamed stat value. Based on official ARK stat formulas.
+    <strong>Stat Calculator — Wild Points v4:</strong>
+    Select a dino → Enter the wild creature's level and the stat values you see in-game →
+    ASEM calculates how many wild points went into each stat from the base stat data, shows any leftover "wasted" speed points,
+    and draws a quick stat graph like Dododex. If you still see Wild/Tamed, Dom Lvl, or TE%, your browser is showing the old cached app.
   </div>
+
+  <div class="version-pill">Loaded calculator: Wild Points v4 — no Wild/Tamed toggle, no Dom Lvl, no TE%</div>
 
   <div class="calc-layout">
 
@@ -76,9 +79,10 @@
 </div>
 
 <footer>
-  ASEM — All data stored locally in your browser · ARK: Survival Evolved &amp; Ascended
+  ASEM — All data stored locally in your browser · ARK: Survival Evolved &amp; Ascended · Wild Points v4
 </footer>
 
-<script src="script.js"></script>
+<script src="data.js?v=wild-points-v4"></script>
+<script src="script.js?v=wild-points-v4"></script>
 </body>
 </html>
