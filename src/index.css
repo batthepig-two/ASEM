@@ -2,38 +2,94 @@
 @tailwind components;
 @tailwind utilities;
 
-* {
-  @apply border-border;
+@layer base {
+  html {
+    @apply bg-background text-foreground;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  input,
+  textarea,
+  select {
+    @apply bg-input text-foreground placeholder-muted-foreground border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-0;
+  }
+
+  button {
+    @apply transition-colors;
+  }
 }
 
-html {
-  @apply bg-background text-foreground;
+@layer components {
+  .btn {
+    @apply px-4 py-2 rounded-lg font-medium transition-all inline-flex items-center justify-center cursor-pointer;
+  }
+
+  .btn-primary {
+    @apply btn bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80;
+  }
+
+  .btn-secondary {
+    @apply btn bg-secondary text-secondary-foreground hover:bg-secondary/90 active:bg-secondary/80;
+  }
+
+  .btn-outline {
+    @apply btn border border-border bg-card text-foreground hover:bg-card/80 active:bg-card/60;
+  }
+
+  .card {
+    @apply rounded-lg border border-border bg-card text-card-foreground;
+  }
+
+  .input-field {
+    @apply w-full px-3 py-2 rounded-md border border-border bg-input text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary;
+  }
+
+  .section-header {
+    @apply text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3;
+  }
+
+  .label {
+    @apply text-sm font-medium text-foreground;
+  }
+
+  .stat-value {
+    @apply text-sm font-semibold text-accent;
+  }
 }
 
-body {
-  @apply font-sans antialiased bg-background text-foreground;
-}
-
-/* Custom utilities */
 @layer utilities {
-  input[type="search"]::-webkit-search-cancel-button {
-    @apply hidden;
+  .transition-all {
+    @apply transition-all duration-150;
   }
 
-  [contenteditable][data-placeholder]:empty::before {
-    content: attr(data-placeholder);
-    color: rgb(160 174 192 / 1);
-    pointer-events: none;
+  .cursor-pointer {
+    @apply cursor-pointer;
   }
 
-  .ark-glow-green {
-    box-shadow: 0 0 12px rgba(79, 209, 197, 0.3);
+  .gap-2 {
+    @apply gap-2;
   }
 
-  .ark-glow-blue {
-    box-shadow: 0 0 12px rgba(96, 165, 250, 0.3);
+  .gap-3 {
+    @apply gap-3;
   }
 
+  .gap-4 {
+    @apply gap-4;
+  }
+
+  .grid-cols-2 {
+    @apply grid grid-cols-2;
+  }
+
+  /* Animations */
   .mutation-good {
     animation: pulse-green 0.6s ease-out;
   }
@@ -42,45 +98,40 @@ body {
     animation: pulse-red 0.6s ease-out;
   }
 
+  .ark-glow-green {
+    box-shadow: 0 0 12px rgba(34, 197, 94, 0.4);
+  }
+
+  .ark-glow-blue {
+    box-shadow: 0 0 12px rgba(79, 209, 197, 0.4);
+  }
+
   @keyframes pulse-green {
-    0% { box-shadow: 0 0 0 0 rgba(79, 209, 197, 0.7); }
-    100% { box-shadow: 0 0 0 16px rgba(79, 209, 197, 0); }
+    0% {
+      box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+    }
+    100% {
+      box-shadow: 0 0 0 16px rgba(34, 197, 94, 0);
+    }
   }
 
   @keyframes pulse-red {
-    0% { box-shadow: 0 0 0 0 rgba(245, 101, 101, 0.7); }
-    100% { box-shadow: 0 0 0 16px rgba(245, 101, 101, 0); }
+    0% {
+      box-shadow: 0 0 0 0 rgba(245, 101, 101, 0.7);
+    }
+    100% {
+      box-shadow: 0 0 0 16px rgba(245, 101, 101, 0);
+    }
   }
 
-  .hover-elevate {
-    position: relative;
-    transition: all 0.15s ease-out;
+  /* Utility helpers */
+  input[type="search"]::-webkit-search-cancel-button {
+    display: none;
   }
 
-  .hover-elevate:hover {
-    transform: translateY(-2px);
-    box-shadow: 0px 8px 20px 0px rgba(0,0,0,0.6);
-  }
-
-  .hover-elevate:active {
-    transform: translateY(0px);
-  }
-}
-
-@layer components {
-  .btn-primary {
-    @apply px-4 py-2 rounded-md bg-primary text-primary-foreground font-medium hover:bg-primary/90 active:bg-primary/80 transition-colors;
-  }
-
-  .btn-secondary {
-    @apply px-4 py-2 rounded-md bg-secondary text-secondary-foreground font-medium hover:bg-secondary/90 active:bg-secondary/80 transition-colors;
-  }
-
-  .card {
-    @apply rounded-lg border border-border bg-card p-4 text-card-foreground;
-  }
-
-  .input-field {
-    @apply px-3 py-2 rounded-md border border-border bg-input text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent;
+  [contenteditable][data-placeholder]:empty::before {
+    content: attr(data-placeholder);
+    color: #cbd5e0;
+    pointer-events: none;
   }
 }
