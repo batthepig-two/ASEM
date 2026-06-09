@@ -216,8 +216,7 @@ nav {
 }
 .stat-grid {
   display: grid;
-  /* Columns will now stack if they get smaller than 140px */
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
   margin-bottom: 8px;
 }
@@ -238,8 +237,7 @@ nav {
 /* MUTATION TARGETS */
 .targets-grid {
   display: grid;
-  /* We use 200px here because the +/- buttons take up a lot of horizontal room */
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
   margin-bottom: 12px;
 }
@@ -450,8 +448,7 @@ nav {
 /* ═══════════════════════════ STAT CALCULATOR PAGE ═══════════════════════════ */
 .calc-layout {
   display: grid;
-  /* This automatically moves the calculator below the dino list on small screens */
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: 260px 1fr;
   gap: 16px;
   align-items: start;
 }
