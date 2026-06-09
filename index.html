@@ -21,49 +21,58 @@
   <div class="nav-tabs">
     <button class="nav-tab active" data-page="helper">Mutation Helper</button>
     <button class="nav-tab" data-page="calc">Stat Calculator</button>
-    <button class="nav-tab" data-page="taming">Taming Calculator</button>
-    <button class="nav-tab" data-page="howto">How to Use</button>
   </div>
 </nav>
 
-<!-- ══ MUTATION HELPER ══ -->
+<!-- ══════════════ MUTATION HELPER PAGE ══════════════ -->
 <div class="page active" id="page-helper">
-  <div class="lines-header"><h2>Breeding Lines</h2></div>
+
+  <div class="how-to">
+    <strong>How it works:</strong>
+    Enter parent stat <em>levels</em> (not values) →
+    Target column shows what to look for (+2) →
+    Type baby's stat to instantly check if it's a mutation →
+    Track stacks with the counter.
+    <strong>Everything saves automatically.</strong>
+  </div>
+
+  <div class="lines-header">
+    <h2>Breeding Lines</h2>
+  </div>
+
   <div id="lines-container"></div>
-  <button class="add-line-btn" id="add-line-btn"><span>+</span> Add Breeding Line</button>
+
+  <button class="add-line-btn" id="add-line-btn">
+    <span>+</span> Add Another Breeding Line
+  </button>
+
 </div>
 
-<!-- ══ STAT CALCULATOR ══ -->
+<!-- ══════════════ STAT CALCULATOR PAGE ══════════════ -->
 <div class="page" id="page-calc">
+
+  <div class="how-to">
+    <strong>Stat Calculator:</strong>
+    Select a dino → Enter wild levels, domestic levels, and taming effectiveness →
+    Get the final tamed stat value. Based on official ARK stat formulas.
+  </div>
+
   <div class="calc-layout">
+
+    <!-- Left: dino list -->
     <div class="calc-panel">
       <h3>Select Dinosaur</h3>
       <input class="calc-search" id="calc-search" type="text" placeholder="Search…" />
       <div class="calc-dino-list" id="calc-dino-list"></div>
     </div>
+
+    <!-- Right: calculator -->
     <div class="calc-right" id="calc-right">
       <div class="calc-hint">← Select a dinosaur to calculate stats</div>
     </div>
-  </div>
-</div>
 
-<!-- ══ TAMING CALCULATOR ══ -->
-<div class="page" id="page-taming">
-  <div class="calc-layout">
-    <div class="calc-panel">
-      <h3>Select Creature</h3>
-      <input class="calc-search" id="taming-search" type="text" placeholder="Search…" />
-      <div class="calc-dino-list" id="taming-dino-list"></div>
-    </div>
-    <div class="calc-right" id="taming-right">
-      <div class="calc-hint">← Select a creature to see taming info</div>
-    </div>
   </div>
-</div>
 
-<!-- ══ HOW TO USE ══ -->
-<div class="page" id="page-howto">
-  <div id="howto-content"></div>
 </div>
 
 <footer>
