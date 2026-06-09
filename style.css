@@ -216,7 +216,8 @@ nav {
 }
 .stat-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* Columns will now stack if they get smaller than 140px */
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 8px;
   margin-bottom: 8px;
 }
