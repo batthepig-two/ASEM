@@ -196,6 +196,16 @@ function buildStack(line){
 // ─── STAT CALCULATOR ─────────────────────────────────────────
 let calcDino=null;
 
+const CALC_STATS = STATS.slice(0,6);
+const CALC_STAT_META = [
+  { key:'health', abbr:'HP' },
+  { key:'stamina', abbr:'ST' },
+  { key:'oxygen', abbr:'OX' },
+  { key:'food', abbr:'FO' },
+  { key:'weight', abbr:'WT' },
+  { key:'melee', abbr:'DMG' },
+];
+
 function renderCalc(){
   const dinoList=document.getElementById('calc-dino-list');
   const calcSearch=document.getElementById('calc-search');
@@ -203,65 +213,223 @@ function renderCalc(){
     dinoList.innerHTML='';
     const q=filter.toLowerCase();
     UNIQUE_DINOS.filter(d=>!q||d.name.toLowerCase().includes(q)).forEach(d=>{
-      const item=el('div','calc-dino-item'+(calcDino&&calcDino.name===d.name?' selected':''),d.name);
-      item.onclick=()=>{ calcDino=d; document.querySelectorAll('.calc-dino-item').forEach(x=>x.classList.remove('selected')); item.classList.add('selected'); updateCalcRight(); };
+      const item=el('button','calc-dino-item'+(calcDino&&calcDino.name===d.name?' selected':''),d.name);
+      item.type='button';
+      item.onclick=()=>{ calcDino=d; updateCalcRight(); renderList(calcSearch.value); };
       dinoList.appendChild(item);
     });
   }
   renderList(''); calcSearch.oninput=()=>renderList(calcSearch.value);
 }
 
+function formatStatValue(value,index){
+  if(!Number.isFinite(value)) return '—';
+  if(index===5 || index===6) return `${roundTo(value,1)}%`;
+  if(Math.abs(value) >= 1000) return Math.round(value).toLocaleString();
+  return Number.isInteger(value) ? String(value) : String(roundTo(value,1));
+}
+
+function roundTo(value,places){
+  const factor=10**places;
+  return Math.round((value+Number.EPSILON)*factor)/factor;
+}
+
+function calculateWildPoints(statValue,dino,index){
+  const value=Number(statValue);
+  const base=dino.base[index];
+  const perPoint=dino.wild[index];
+  if(!Number.isFinite(value) || value <= 0 || !Number.isFinite(perPoint) || perPoint <= 0) return null;
+  return Math.max(0,Math.round((value-base)/perPoint));
+}
+
+function inferWildPoints(statValue,dino,index){
+  return calculateWildPoints(statValue,dino,index);
+}
+
+function valueForWildPoints(dino,index,points){
+  return dino.base[index] + dino.wild[index] * points;
+}
+
+function formatStatInputValue(value,index){
+  if(!Number.isFinite(value)) return '';
+  const rounded=roundTo(value,index===5 ? 1 : 2);
+  return Number.isInteger(rounded) ? String(rounded) : String(rounded);
+}
+
+function statRatingClass(points){
+  if(points === null) return 'unknown';
+  if(points >= 45) return 'amazing';
+  if(points >= 35) return 'great';
+  if(points >= 25) return 'good';
+  return 'low';
+}
+
+function statRatingLabel(points){
+  if(points === null) return 'Enter stat';
+  if(points >= 45) return 'Amazing';
+  if(points >= 35) return 'Great';
+  if(points >= 25) return 'Good';
+  return 'Low';
+}
+
 function updateCalcRight(){
   const right=document.getElementById('calc-right'); right.innerHTML='';
-  if(!calcDino){ right.innerHTML='<div class="calc-hint">← Select a dinosaur to calculate stats</div>'; return; }
+  if(!calcDino){ right.innerHTML='<div class="calc-hint">Select a dinosaur to start calculating wild points.</div>'; return; }
   const d=calcDino;
 
-  const info=el('div','calc-info');
-  info.appendChild(el('h3','','Base Stats (Lvl 1 Tamed)'));
+  const info=el('section','calc-info');
+  info.appendChild(el('h3','','Base Stats (Level 1 Wild)'));
   info.appendChild(el('div','selected-dino-name',d.name));
   const bst=el('div','base-stat-table');
-  STATS.slice(0,6).forEach((s,i)=>{
+  CALC_STATS.forEach((s,i)=>{
     const row=el('div','base-stat-row');
-    row.innerHTML=`<span class="stat-name">${s}</span><span class="stat-val">${d.base[i]}</span>`;
+    row.innerHTML=`<span class="stat-name">${s}</span><span class="stat-val">${formatStatValue(d.base[i],i)}</span>`;
     bst.appendChild(row);
   });
   info.appendChild(bst); right.appendChild(info);
 
-  const inp=el('div','calc-inputs'); inp.appendChild(el('h3','','Stat Calculator'));
-  const ltRow=el('div','level-type-row'); let isTamed=true;
-  const wildBtn=el('div','level-type-btn','Wild'); const tamedBtn=el('div','level-type-btn active','Tamed');
-  wildBtn.onclick =()=>{ isTamed=false; wildBtn.classList.add('active');  tamedBtn.classList.remove('active'); recalc(); };
-  tamedBtn.onclick=()=>{ isTamed=true;  tamedBtn.classList.add('active'); wildBtn.classList.remove('active');  recalc(); };
-  ltRow.appendChild(wildBtn); ltRow.appendChild(tamedBtn); inp.appendChild(ltRow);
+  const calc=el('section','calc-inputs');
+  calc.appendChild(el('h3','','Wild Point Calculator'));
 
-  const hdr=el('div','calc-stat-row header');
-  ['Stat','Wild Lvl','Dom Lvl','TE%','Result'].forEach(h=>hdr.appendChild(el('span','',h)));
-  inp.appendChild(hdr);
+  const top=el('div','wild-calc-top');
+  const levelField=el('label','wild-level-field');
+  levelField.innerHTML='<span>Creature Level (Wild Only)</span>';
+  const levelInput=el('input','calc-stat-input'); levelInput.type='number'; levelInput.min='1'; levelInput.value='150';
+  levelField.appendChild(levelInput);
+  top.appendChild(levelField);
+  const summary=el('div','calc-summary','');
+  top.appendChild(summary);
+  calc.appendChild(top);
 
+  const grid=el('div','dododex-grid');
   const rows=[];
-  STATS.slice(0,7).forEach((s,i)=>{
-    const row=el('div','calc-stat-row');
-    const wIn=el('input','calc-stat-input'); wIn.type='number'; wIn.min='0'; wIn.value='0';
-    const dIn=el('input','calc-stat-input'); dIn.type='number'; dIn.min='0'; dIn.value='0';
-    const tIn=el('input','calc-stat-input'); tIn.type='number'; tIn.min='0'; tIn.max='100'; tIn.value='100';
-    const resSpan=el('span','calc-result-val neutral','—');
-    [wIn,dIn,tIn].forEach(x=>x.oninput=recalc);
-    row.appendChild(el('span','calc-stat-name',s));
-    row.appendChild(wIn); row.appendChild(dIn); row.appendChild(tIn); row.appendChild(resSpan);
-    inp.appendChild(row); rows.push({wIn,dIn,tIn,resSpan,i});
+  CALC_STATS.forEach((stat,i)=>{
+    const row=el('div','dododex-row');
+    row.innerHTML=`
+      <div class="stat-icon">${CALC_STAT_META[i].abbr}</div>
+      <div class="stat-name-wrap"><strong>${stat}</strong><span>Base ${formatStatValue(d.base[i],i)} · +${formatStatValue(d.wild[i],i)} per wild point</span></div>
+    `;
+    const statInput=el('input','calc-stat-input observed-stat');
+    statInput.type='number'; statInput.min='0'; statInput.step='any';
+    statInput.placeholder=formatStatValue(d.base[i],i).replace('%','');
+    const controls=el('div','point-stepper');
+    const minus=el('button','point-step-btn','−'); minus.type='button'; minus.setAttribute('aria-label',`Remove one ${stat} point`);
+    const pointBox=el('span','point-step-value','0 pts');
+    const plus=el('button','point-step-btn','+'); plus.type='button'; plus.setAttribute('aria-label',`Add one ${stat} point`);
+    controls.appendChild(minus); controls.appendChild(pointBox); controls.appendChild(plus);
+    const result=el('div','point-result');
+    const bar=el('div','point-bar'); bar.innerHTML='<span></span>';
+    function nudgePoint(delta){
+      const current=calculateWildPoints(statInput.value,d,i);
+      const next=Math.max(0,(current ?? 0)+delta);
+      statInput.value=formatStatInputValue(valueForWildPoints(d,i,next),i);
+      recalc();
+    }
+    minus.onclick=()=>nudgePoint(-1);
+    plus.onclick=()=>nudgePoint(1);
+    row.appendChild(statInput); row.appendChild(controls); row.appendChild(result); row.appendChild(bar);
+    grid.appendChild(row);
+    rows.push({statInput,pointBox,result,bar,i});
   });
+  calc.appendChild(grid);
+
+  const graphCard=el('section','calc-graph-card');
+  graphCard.appendChild(el('h3','','Stat Graph'));
+  const graph=el('div','stat-graph');
+  graph.innerHTML='<canvas id="stat-graph-canvas" width="360" height="280" aria-label="Stat points graph"></canvas>';
+  graphCard.appendChild(graph);
+
+  const explainer=el('section','calc-info calc-explainer');
+  explainer.innerHTML=`
+    <h3>How This Ark Stat Calculator Works</h3>
+    <p>For wild creatures, ARK gives one point to a random stat for every level after level 1, so a level 120 wild creature has 119 wild points total. For each stat, ASEM uses the data.js base stat and per-wild-point increase, then calculates <strong>points = round((entered stat − base stat) ÷ increase per point)</strong>.</p>
+    <p>The −/+ buttons move the calculated point count one point at a time and fill in the matching stat value. Movement speed normally cannot be checked from the visible wild stats, so any unaccounted level points are shown as <strong>wasted speed points</strong>. This is most accurate before taming and before imprint, leveling, or server stat changes.</p>
+  `;
 
   function recalc(){
-    rows.forEach(({wIn,dIn,tIn,resSpan,i})=>{
-      const wLvl=+wIn.value||0, dLvl=+dIn.value||0;
-      const te=Math.min(100,Math.max(0,+tIn.value||100))/100;
-      const B=d.base[i],Iw=d.wild[i],Id=d.dom[i],tb=d.tameBonus[i];
-      const result=isTamed ? (B+Iw*wLvl)*(1+tb*te)*(1+Id*dLvl) : B+Iw*wLvl;
-      resSpan.textContent=(i===5||i===6)?result.toFixed(1)+'%':Math.round(result);
-      resSpan.className='calc-result-val'+(result>B*2?' warn':'');
+    const level=Math.max(1,+levelInput.value||1);
+    const maxPoints=Math.max(0,level-1);
+    let used=0;
+    const points=[];
+    rows.forEach(({statInput,pointBox,result,bar,i})=>{
+      const pts=calculateWildPoints(statInput.value,d,i);
+      points[i]=pts;
+      if(pts !== null) used += pts;
+      if(pointBox) pointBox.textContent=pts === null ? '0 pts' : `${pts} pts`;
+      const expected=pts === null ? null : valueForWildPoints(d,i,pts);
+      const rating=statRatingClass(pts);
+      result.className=`point-result ${rating}`;
+      result.innerHTML=pts === null
+        ? '<strong>—</strong><span>points</span>'
+        : `<strong>${pts}</strong><span>pts · ${statRatingLabel(pts)}</span><small>= ${formatStatValue(expected,i)}</small>`;
+      const pct=pts === null ? 0 : Math.min(100,(pts/Math.max(1,maxPoints))*100);
+      qs('span',bar).style.width=`${pct}%`;
     });
+    const wasted=Math.max(0,maxPoints-used);
+    const overBy=Math.max(0,used-maxPoints);
+    summary.className='calc-summary'+(overBy?' over':'');
+    summary.innerHTML=overBy
+      ? `<strong>${used}</strong> entered points is <strong>${overBy}</strong> over a level ${level} wild creature.`
+      : `<strong>${used}</strong> / ${maxPoints} visible points · <strong>${wasted}</strong> possible wasted speed points`;
+    drawStatGraph(points,maxPoints);
   }
-  recalc(); right.appendChild(inp);
+
+  function drawStatGraph(points,maxPoints){
+    const canvas=qs('#stat-graph-canvas',graph);
+    const ctx=canvas.getContext('2d');
+    const w=canvas.width, h=canvas.height;
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle='#050b14'; ctx.fillRect(0,0,w,h);
+    const cx=w/2, cy=h/2+6, radius=95;
+    const labels=CALC_STATS;
+    const maxGraph=Math.max(1,Math.min(maxPoints,60));
+
+    ctx.strokeStyle='rgba(255,255,255,0.16)';
+    ctx.fillStyle='rgba(255,255,255,0.04)';
+    [0.33,0.66,1].forEach(scale=>{
+      ctx.beginPath();
+      labels.forEach((_,i)=>{
+        const angle=(-Math.PI/2)+(i*2*Math.PI/labels.length);
+        const x=cx+Math.cos(angle)*radius*scale;
+        const y=cy+Math.sin(angle)*radius*scale;
+        if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      });
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+    });
+
+    labels.forEach((label,i)=>{
+      const angle=(-Math.PI/2)+(i*2*Math.PI/labels.length);
+      ctx.strokeStyle='rgba(255,255,255,0.12)';
+      ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+Math.cos(angle)*radius,cy+Math.sin(angle)*radius); ctx.stroke();
+      ctx.fillStyle='#e2e8f0'; ctx.font='12px Segoe UI, sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      const lx=cx+Math.cos(angle)*(radius+28);
+      const ly=cy+Math.sin(angle)*(radius+24);
+      ctx.fillText(label.toUpperCase(),lx,ly);
+    });
+
+    ctx.beginPath();
+    labels.forEach((_,i)=>{
+      const pts=points[i] || 0;
+      const scale=Math.min(1,pts/maxGraph);
+      const angle=(-Math.PI/2)+(i*2*Math.PI/labels.length);
+      const x=cx+Math.cos(angle)*radius*scale;
+      const y=cy+Math.sin(angle)*radius*scale;
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    ctx.closePath();
+    ctx.fillStyle='rgba(192, 255, 155, 0.72)';
+    ctx.strokeStyle='rgba(74, 222, 128, 0.95)';
+    ctx.lineWidth=3;
+    ctx.fill(); ctx.stroke();
+  }
+
+  levelInput.oninput=recalc;
+  rows.forEach(({statInput})=>{ statInput.oninput=recalc; });
+  recalc();
+
+  right.appendChild(calc);
+  right.appendChild(graphCard);
+  right.appendChild(explainer);
 }
 
 // ─── INIT ─────────────────────────────────────────────────────
