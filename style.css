@@ -491,6 +491,9 @@ nav {
   color: var(--text-muted);
   font-size: 13px;
   border: 1px solid transparent;
+  background: none;
+  text-align: left;
+  width: 100%;
   transition: all 0.12s;
 }
 .calc-dino-item:hover { background: var(--surface); color: var(--text); }
@@ -668,6 +671,10 @@ footer {
 html, body { max-width: 100%; overflow-x: hidden; }
 button, input, select, textarea { font: inherit; max-width: 100%; }
 img, canvas, svg { max-width: 100%; }
+/* Prevent iOS Safari auto-zoom on input focus (requires font-size ≥ 16px) */
+@media (max-width: 768px) {
+  input, select, textarea { font-size: 16px !important; }
+}
 
 @media (max-width: 720px) {
   nav {

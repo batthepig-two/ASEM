@@ -61,7 +61,7 @@ function buildLineCard(line) {
   titleEl.oninput = () => { line.name=titleEl.innerText.trim(); saveLines(); };
   left.appendChild(colBtn); left.appendChild(titleEl);
 
-  const delBtn = el('button','btn btn-danger btn-sm','🗑');
+  const delBtn = el('button','btn btn-danger btn-sm','✕');
   delBtn.onclick = () => { lines=lines.length===1?[newLine()]:lines.filter(l=>l.id!==line.id); saveLines(); renderLines(); };
   hdr.appendChild(left); hdr.appendChild(delBtn);
   card.appendChild(hdr);
