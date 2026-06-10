@@ -312,10 +312,9 @@ function updateCalcRight(){
     const statInput=el('input','calc-stat-input observed-stat');
     statInput.type='number'; statInput.min='0'; statInput.step='any';
     statInput.placeholder=formatStatValue(d.base[i],i).replace('%','');
-    statInput.value = formatStatInputValue(valueForWildPoints(d, i, 25), i);
     const controls=el('div','point-stepper');
     const minus=el('button','point-step-btn','−'); minus.type='button'; minus.setAttribute('aria-label',`Remove one ${stat} point`);
-    const pointBox = el('span', 'point-step-value', '25 pts');
+    const pointBox=el('span','point-step-value','0 pts');
     const plus=el('button','point-step-btn','+'); plus.type='button'; plus.setAttribute('aria-label',`Add one ${stat} point`);
     controls.appendChild(minus); controls.appendChild(pointBox); controls.appendChild(plus);
     const result=el('div','point-result');
