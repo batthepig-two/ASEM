@@ -195,6 +195,7 @@ function buildStack(line){
 
 // ─── STAT CALCULATOR ─────────────────────────────────────────
 let calcDino=null;
+let calcMode='wild';
 
 const CALC_STATS = STATS.slice(0,6);
 const CALC_STAT_META = [
@@ -234,6 +235,16 @@ function roundTo(value,places){
   return Math.round((value+Number.EPSILON)*factor)/factor;
 }
 
+function tamingAddForStat(dino,index){
+  const defaultAdd = index === 0 ? 0.07 : (index === 5 ? 7 : 0);
+  return Array.isArray(dino.tameAdd) ? (dino.tameAdd[index] || 0) : defaultAdd;
+}
+
+function tamingMultForStat(dino,index){
+  const defaultMult = index === 5 ? 0.176 : 0;
+  return Array.isArray(dino.tameMult) ? (dino.tameMult[index] || 0) : defaultMult;
+}
+
 function calculateWildPoints(statValue,dino,index){
   const value=Number(statValue);
   const base=dino.base[index];
@@ -242,12 +253,36 @@ function calculateWildPoints(statValue,dino,index){
   return Math.max(0,Math.round((value-base)/perPoint));
 }
 
+function calculateHatchedPoints(statValue,dino,index){
+  const value=Number(statValue);
+  const base=dino.base[index];
+  const perPoint=dino.wild[index];
+  if(!Number.isFinite(value) || value <= 0 || !Number.isFinite(base) || base <= 0 || !Number.isFinite(perPoint) || perPoint <= 0) return null;
+  const tameAdd=tamingAddForStat(dino,index);
+  const tameMult=tamingMultForStat(dino,index);
+  const preTameValue=(value/(1+tameMult))-tameAdd;
+  return Math.max(0,Math.round((preTameValue-base)/perPoint));
+}
+
+function calculateStatPoints(statValue,dino,index,mode){
+  return mode === 'hatched' ? calculateHatchedPoints(statValue,dino,index) : calculateWildPoints(statValue,dino,index);
+}
+
 function inferWildPoints(statValue,dino,index){
   return calculateWildPoints(statValue,dino,index);
 }
 
 function valueForWildPoints(dino,index,points){
   return dino.base[index] + dino.wild[index] * points;
+}
+
+function valueForHatchedPoints(dino,index,points){
+  const wildValue=valueForWildPoints(dino,index,points);
+  return (wildValue + tamingAddForStat(dino,index)) * (1 + tamingMultForStat(dino,index));
+}
+
+function valueForStatPoints(dino,index,points,mode){
+  return mode === 'hatched' ? valueForHatchedPoints(dino,index,points) : valueForWildPoints(dino,index,points);
 }
 
 function formatStatInputValue(value,index){
@@ -274,7 +309,7 @@ function statRatingLabel(points){
 
 function updateCalcRight(){
   const right=document.getElementById('calc-right'); right.innerHTML='';
-  if(!calcDino){ right.innerHTML='<div class="calc-hint">Select a dinosaur to start calculating wild points.</div>'; return; }
+  if(!calcDino){ right.innerHTML='<div class="calc-hint">Select a dinosaur to start calculating stat points.</div>'; return; }
   const d=calcDino;
 
   const info=el('section','calc-info');
@@ -289,11 +324,21 @@ function updateCalcRight(){
   info.appendChild(bst); right.appendChild(info);
 
   const calc=el('section','calc-inputs');
-  calc.appendChild(el('h3','','Wild Point Calculator'));
+  calc.appendChild(el('h3','',calcMode === 'hatched' ? 'Hatched Point Calculator' : 'Wild Point Calculator'));
+
+  const modeRow=el('div','level-type-row');
+  const wildBtn=el('button','level-type-btn'+(calcMode === 'wild' ? ' active' : ''),'Wild Dino');
+  wildBtn.type='button';
+  const hatchedBtn=el('button','level-type-btn'+(calcMode === 'hatched' ? ' active' : ''),'Freshly Hatched Dino');
+  hatchedBtn.type='button';
+  wildBtn.onclick=()=>{ calcMode='wild'; updateCalcRight(); };
+  hatchedBtn.onclick=()=>{ calcMode='hatched'; updateCalcRight(); };
+  modeRow.appendChild(wildBtn); modeRow.appendChild(hatchedBtn);
+  calc.appendChild(modeRow);
 
   const top=el('div','wild-calc-top');
   const levelField=el('label','wild-level-field');
-  levelField.innerHTML='<span>Creature Level (Wild Only)</span>';
+  levelField.innerHTML=`<span>${calcMode === 'hatched' ? 'Baby Level (Fresh / Unleveled)' : 'Creature Level (Wild Only)'}</span>`;
   const levelInput=el('input','calc-stat-input'); levelInput.type='number'; levelInput.min='1'; levelInput.value='150';
   levelField.appendChild(levelInput);
   top.appendChild(levelField);
@@ -307,11 +352,11 @@ function updateCalcRight(){
     const row=el('div','dododex-row');
     row.innerHTML=`
       <div class="stat-icon">${CALC_STAT_META[i].abbr}</div>
-      <div class="stat-name-wrap"><strong>${stat}</strong><span>Base ${formatStatValue(d.base[i],i)} · +${formatStatValue(d.wild[i],i)} per wild point</span></div>
+      <div class="stat-name-wrap"><strong>${stat}</strong><span>${calcMode === 'hatched' ? `Fresh hatch: ${formatStatValue(valueForHatchedPoints(d,i,0),i)} at 0 pts` : `Base ${formatStatValue(d.base[i],i)}`} · +${formatStatValue(d.wild[i],i)} per ${calcMode === 'hatched' ? 'inherited' : 'wild'} point</span></div>
     `;
     const statInput=el('input','calc-stat-input observed-stat');
     statInput.type='number'; statInput.min='0'; statInput.step='any';
-    statInput.placeholder=formatStatValue(d.base[i],i).replace('%','');
+    statInput.placeholder=formatStatValue(valueForStatPoints(d,i,0,calcMode),i).replace('%','');
     const controls=el('div','point-stepper');
     const minus=el('button','point-step-btn','−'); minus.type='button'; minus.setAttribute('aria-label',`Remove one ${stat} point`);
     const pointBox=el('span','point-step-value','0 pts');
@@ -320,9 +365,9 @@ function updateCalcRight(){
     const result=el('div','point-result');
     const bar=el('div','point-bar'); bar.innerHTML='<span></span>';
     function nudgePoint(delta){
-      const current=calculateWildPoints(statInput.value,d,i);
+      const current=calculateStatPoints(statInput.value,d,i,calcMode);
       const next=Math.max(0,(current ?? 0)+delta);
-      statInput.value=formatStatInputValue(valueForWildPoints(d,i,next),i);
+      statInput.value=formatStatInputValue(valueForStatPoints(d,i,next,calcMode),i);
       recalc();
     }
     minus.onclick=()=>nudgePoint(-1);
@@ -343,7 +388,8 @@ function updateCalcRight(){
   explainer.innerHTML=`
     <h3>How This Ark Stat Calculator Works</h3>
     <p>For wild creatures, ARK gives one point to a random stat for every level after level 1, so a level 120 wild creature has 119 wild points total. For each stat, ASEM uses the data.js base stat and per-wild-point increase, then calculates <strong>points = round((entered stat − base stat) ÷ increase per point)</strong>.</p>
-    <p>The −/+ buttons move the calculated point count one point at a time and fill in the matching stat value. Movement speed normally cannot be checked from the visible wild stats, so any unaccounted level points are shown as <strong>wasted speed points</strong>. This is most accurate before taming and before imprint, leveling, or server stat changes.</p>
+    <p>For freshly hatched/born creatures, ARK inherits the parents' natural stat levels and calculates the displayed value like a just-tamed creature with 100% taming effectiveness. ASEM reverses those no-imprint, no-domestic-level bonuses so the result is the inherited breeding points.</p>
+    <p>The −/+ buttons move the calculated point count one point at a time and fill in the matching stat value. Movement speed normally cannot be checked from visible stats, so any unaccounted level points are shown as <strong>wasted/hidden speed points</strong>. Results assume default server stat multipliers and a fresh creature with no imprint, manual level-ups, or single-player stat overrides.</p>
   `;
 
   function recalc(){
@@ -352,11 +398,11 @@ function updateCalcRight(){
     let used=0;
     const points=[];
     rows.forEach(({statInput,pointBox,result,bar,i})=>{
-      const pts=calculateWildPoints(statInput.value,d,i);
+      const pts=calculateStatPoints(statInput.value,d,i,calcMode);
       points[i]=pts;
       if(pts !== null) used += pts;
       if(pointBox) pointBox.textContent=pts === null ? '0 pts' : `${pts} pts`;
-      const expected=pts === null ? null : valueForWildPoints(d,i,pts);
+      const expected=pts === null ? null : valueForStatPoints(d,i,pts,calcMode);
       const rating=statRatingClass(pts);
       result.className=`point-result ${rating}`;
       result.innerHTML=pts === null
@@ -369,8 +415,8 @@ function updateCalcRight(){
     const overBy=Math.max(0,used-maxPoints);
     summary.className='calc-summary'+(overBy?' over':'');
     summary.innerHTML=overBy
-      ? `<strong>${used}</strong> entered points is <strong>${overBy}</strong> over a level ${level} wild creature.`
-      : `<strong>${used}</strong> / ${maxPoints} visible points · <strong>${wasted}</strong> possible wasted speed points`;
+      ? `<strong>${used}</strong> entered points is <strong>${overBy}</strong> over a level ${level} ${calcMode === 'hatched' ? 'fresh baby' : 'wild creature'}.`
+      : `<strong>${used}</strong> / ${maxPoints} visible points · <strong>${wasted}</strong> possible ${calcMode === 'hatched' ? 'hidden inherited speed' : 'wasted speed'} points`;
     drawStatGraph(points,maxPoints);
   }
 
