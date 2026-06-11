@@ -1,3 +1,3 @@
 Heavy inspiration from dododex!
-I made this because i wanted features from dododex!
-i heavily recommend using dododex for a more proffesional experience!
+I made this because I wanted features from dododex!
+I heavily recommend using dododex for a more proffesional experience!
