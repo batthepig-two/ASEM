@@ -5,12 +5,18 @@
 
 // ─── STORAGE ──────────────────────────────────────────────────
 const STORAGE_KEY = 'asem_lines_v2';
+const SAVED_CREATURES_KEY = 'asem_saved_creatures_v1';
 function loadLines() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch { return []; } }
 function saveLines() { localStorage.setItem(STORAGE_KEY, JSON.stringify(lines)); }
+function loadSavedCreatures() { try { return JSON.parse(localStorage.getItem(SAVED_CREATURES_KEY)) || []; } catch { return []; } }
+function saveSavedCreatures() { localStorage.setItem(SAVED_CREATURES_KEY, JSON.stringify(savedCreatures)); }
 
 // ─── STATE ────────────────────────────────────────────────────
 let lines = loadLines();
 if (!lines.length) lines = [newLine()];
+let savedCreatures = loadSavedCreatures();
+let activeSavedCreatureId = null;
+let calcDraft = null;
 
 function newLine() {
   return {
@@ -24,7 +30,8 @@ function newLine() {
       health:{fM:0,mM:0}, stamina:{fM:0,mM:0}, oxygen:{fM:0,mM:0},
       food:{fM:0,mM:0},   weight:{fM:0,mM:0},  melee:{fM:0,mM:0},
     },
-    checkVal:'', mutStack:0, mutMax:20, notes:'', collapsed:false,
+    babyStats: {health:'',stamina:'',oxygen:'',food:'',weight:'',melee:''},
+    checkVal:'', mutStack:0, mutMax:20, generation:1, notes:'', collapsed:false,
   };
 }
 
@@ -41,142 +48,164 @@ function el(tag,cls,html){ const e=document.createElement(tag); if(cls)e.classNa
 function qs(sel,root){ return (root||document).querySelector(sel); }
 
 // ─── MUTATION HELPER ──────────────────────────────────────────
+const HELPER_STAT_KEYS = ['health','stamina','oxygen','food','weight','melee'];
+const HELPER_STAT_LABELS = ['Health','Stamina','Oxygen','Food','Weight','Melee'];
+
 function renderLines() {
   const container = document.getElementById('lines-container');
+  if(!container) return;
   container.innerHTML = '';
   lines.forEach(line => container.appendChild(buildLineCard(line)));
 }
 
 function buildLineCard(line) {
-  const card = el('div','line-card');
+  line.fatherStats ||= {health:0,stamina:0,oxygen:0,food:0,weight:0,melee:0};
+  line.motherStats ||= {health:0,stamina:0,oxygen:0,food:0,weight:0,melee:0};
+  line.babyStats ||= {health:'',stamina:'',oxygen:'',food:'',weight:'',melee:''};
+  line.targetStat ||= 'Melee';
+  line.mutMax ||= 20;
+  line.mutStack ||= 0;
+  line.generation ||= 1;
+
+  const card = el('div','line-card breeding-project');
   card.dataset.id = line.id;
 
-  const hdr  = el('div','line-header');
+  const hdr = el('div','line-header project-header');
   const left = el('div','line-header-left');
   const colBtn = el('button','collapse-btn', line.collapsed?'▶':'▼');
   if(line.collapsed) colBtn.classList.add('collapsed');
   colBtn.onclick = () => { line.collapsed=!line.collapsed; saveLines(); renderLines(); };
-  const titleEl = el('span','line-title', line.name||'Breeding Line');
-  titleEl.contentEditable=true; titleEl.spellcheck=false;
+  const titleEl = el('span','line-title project-title', line.name||'Breeding Project');
+  titleEl.contentEditable=true;
+  titleEl.spellcheck=false;
+  titleEl.title='Click to rename this breeding project';
   titleEl.oninput = () => { line.name=titleEl.innerText.trim(); saveLines(); };
-  left.appendChild(colBtn); left.appendChild(titleEl);
+  const meta = el('span','project-meta', `${line.dino || 'No dino selected'} · ${line.targetStat} line`);
+  left.appendChild(colBtn); left.appendChild(titleEl); left.appendChild(meta);
 
-  const delBtn = el('button','btn btn-danger btn-sm','✕');
+  const delBtn = el('button','btn btn-danger btn-sm','Delete');
   delBtn.onclick = () => { lines=lines.length===1?[newLine()]:lines.filter(l=>l.id!==line.id); saveLines(); renderLines(); };
-  hdr.appendChild(left); hdr.appendChild(delBtn);
-  card.appendChild(hdr);
+  hdr.appendChild(left); hdr.appendChild(delBtn); card.appendChild(hdr);
 
-  const body = el('div','line-body');
+  const body = el('div','line-body project-body');
   if(line.collapsed){ body.style.display='none'; card.appendChild(body); return card; }
 
-  body.appendChild(buildDinoPicker(line));
-
-  const tsRow = el('div','target-stat-row');
-  tsRow.innerHTML='<label>Mutation Target Stat:</label>';
-  const tsSel = el('select','');
-  ['Health','Stamina','Oxygen','Food','Weight','Melee'].forEach(s=>{
-    const o=el('option','',s); o.value=s; if(s===line.targetStat)o.selected=true; tsSel.appendChild(o);
-  });
-  tsSel.onchange=()=>{ line.targetStat=tsSel.value; saveLines(); renderLines(); };
-  tsRow.appendChild(tsSel); body.appendChild(tsRow);
-
-  body.appendChild(buildStatBlock(line,'FATHER STATS','fatherStats'));
-  body.appendChild(buildStatBlock(line,'MOTHER STATS','motherStats'));
-  body.appendChild(buildTargets(line));
-  body.appendChild(buildMutCheck(line));
+  body.appendChild(buildProjectSetup(line));
+  body.appendChild(buildParentComparison(line));
+  body.appendChild(buildBabyStatChecker(line));
   body.appendChild(buildStack(line));
 
-  const noteWrap=el('div','notes-wrap');
+  const noteWrap=el('div','notes-wrap project-notes');
+  const noteLabel=el('div','stat-section-title','PROJECT NOTES');
   const ta=el('textarea','');
-  ta.placeholder='e.g. Gen 5 melee line, keep babies above 350…'; ta.value=line.notes||'';
+  ta.placeholder='Plan the next raise: clean male, target HP, keep females with 49+ melee, etc.';
+  ta.value=line.notes||'';
   ta.oninput=()=>{ line.notes=ta.value; saveLines(); };
-  noteWrap.appendChild(ta); body.appendChild(noteWrap);
+  noteWrap.appendChild(noteLabel); noteWrap.appendChild(ta); body.appendChild(noteWrap);
   card.appendChild(body);
   return card;
 }
 
-function buildDinoPicker(line){
-  const wrap=el('div','');
-  const sw=el('div','dino-search-wrap');
-  const si=el('input',''); si.type='text'; si.placeholder='Search dinos…';
-  sw.appendChild(el('span','search-icon','🔍')); sw.appendChild(si); wrap.appendChild(sw);
-  const grid=el('div','dino-grid'); let filtered=UNIQUE_DINOS;
-  function renderChips(){
-    grid.innerHTML='';
-    filtered.forEach(d=>{
-      const chip=el('span','dino-chip',d.name);
-      if(line.dino===d.name) chip.classList.add('selected');
-      chip.onclick=()=>{ line.dino=(line.dino===d.name)?'':d.name; saveLines(); renderLines(); };
-      grid.appendChild(chip);
-    });
-  }
-  renderChips();
-  si.oninput=()=>{ const q=si.value.toLowerCase(); filtered=q?UNIQUE_DINOS.filter(d=>d.name.toLowerCase().includes(q)):UNIQUE_DINOS; renderChips(); };
-  wrap.appendChild(grid); return wrap;
-}
+function buildProjectSetup(line){
+  const sec=el('section','project-section project-setup');
+  sec.appendChild(el('div','stat-section-title','PROJECT SETUP'));
+  const grid=el('div','project-setup-grid');
 
-function buildStatBlock(line,title,key){
-  const sec=el('div',''); sec.appendChild(el('div','stat-section-title',title));
-  const grid=el('div','stat-grid');
-  ['health','stamina','oxygen','food','weight','melee'].forEach((sk,i)=>{
-    const f=el('div','stat-field'); f.appendChild(el('label','',['Health','Stamina','Oxygen','Food','Weight','Melee'][i]));
-    const inp=el('input',''); inp.type='number'; inp.min='0'; inp.value=line[key][sk]||0;
-    inp.oninput=()=>{ line[key][sk]=+inp.value; saveLines(); };
-    f.appendChild(inp); grid.appendChild(f);
+  const dinoField=el('label','project-field');
+  dinoField.innerHTML='<span>Dinosaur</span>';
+  const dinoSelect=el('select','');
+  dinoSelect.appendChild(el('option','','Choose dino…'));
+  dinoSelect.firstChild.value='';
+  UNIQUE_DINOS.forEach(d=>{
+    const o=el('option','',d.name); o.value=d.name; if(line.dino===d.name)o.selected=true; dinoSelect.appendChild(o);
   });
-  sec.appendChild(grid); return sec;
+  dinoSelect.onchange=()=>{ line.dino=dinoSelect.value; if(!line.name || line.name==='New Breeding Line' || line.name==='Breeding Project') line.name=line.dino ? `${line.dino} Line` : 'Breeding Project'; saveLines(); renderLines(); };
+  dinoField.appendChild(dinoSelect);
+
+  const targetField=el('label','project-field');
+  targetField.innerHTML='<span>Target Stat</span>';
+  const targetSelect=el('select','');
+  HELPER_STAT_LABELS.forEach(label=>{ const o=el('option','',label); o.value=label; if(line.targetStat===label)o.selected=true; targetSelect.appendChild(o); });
+  targetSelect.onchange=()=>{ line.targetStat=targetSelect.value; saveLines(); renderLines(); };
+  targetField.appendChild(targetSelect);
+
+  const genField=el('label','project-field');
+  genField.innerHTML='<span>Generation</span>';
+  const genInput=el('input',''); genInput.type='number'; genInput.min='1'; genInput.value=line.generation||1;
+  genInput.oninput=()=>{ line.generation=Math.max(1,+genInput.value||1); saveLines(); };
+  genField.appendChild(genInput);
+
+  const summary=el('div','project-summary');
+  const targetKey=line.targetStat.toLowerCase();
+  const best=Math.max(+(line.fatherStats[targetKey]||0),+(line.motherStats[targetKey]||0));
+  summary.innerHTML=`<strong>${best+2}</strong><span>next ${line.targetStat} mutation target</span><small>Best parent ${line.targetStat}: ${best} pts</small>`;
+
+  grid.appendChild(dinoField); grid.appendChild(targetField); grid.appendChild(genField); grid.appendChild(summary);
+  sec.appendChild(grid);
+  return sec;
 }
 
-function buildTargets(line){
-  const sec=el('div',''); sec.appendChild(el('div','stat-section-title','MUTATION TARGETS (+2 LEVELS)'));
-  const grid=el('div','targets-grid');
-  ['health','stamina','oxygen','food','weight','melee'].forEach((sk,i)=>{
-    const ti=el('div','target-item');
-    if(line.targetStat.toLowerCase()===sk) ti.classList.add('is-target');
-    const lbl=el('div','target-label'); lbl.innerHTML=`${ ['Health','Stamina','Oxygen','Food','Weight','Melee'][i]} <span class="target-star">★</span>`;
-    ti.appendChild(lbl);
-    const ctrl=el('div','target-controls');
-
-    function counter(valKey){
-      const span=el('span','gender',valKey==='fM'?'♂':'♀');
-      const minus=el('button','btn btn-icon btn-sm','–');
-      const inp=el('input','target-val'); inp.type='number'; inp.min='0'; inp.value=line.targets[sk][valKey]||0;
-      const plus=el('button','btn btn-icon btn-sm','+');
-      minus.onclick=()=>{ line.targets[sk][valKey]=Math.max(0,(+inp.value||0)-1); inp.value=line.targets[sk][valKey]; saveLines(); };
-      plus.onclick =()=>{ line.targets[sk][valKey]=(+inp.value||0)+1; inp.value=line.targets[sk][valKey]; saveLines(); };
-      inp.oninput  =()=>{ line.targets[sk][valKey]=+inp.value; saveLines(); };
-      ctrl.appendChild(span); ctrl.appendChild(minus); ctrl.appendChild(inp); ctrl.appendChild(plus);
+function buildParentComparison(line){
+  const sec=el('section','project-section');
+  sec.appendChild(el('div','stat-section-title','PARENT STAT LEVELS & MUTATION TARGETS'));
+  const table=el('div','breeding-table');
+  table.innerHTML='<div class="breeding-row breeding-head"><span>Stat</span><span>Father</span><span>Mother</span><span>Best</span><span>+2 Target</span></div>';
+  HELPER_STAT_KEYS.forEach((key,i)=>{
+    const row=el('div','breeding-row'+(line.targetStat.toLowerCase()===key?' is-target':''));
+    const father=el('input',''); father.type='number'; father.min='0'; father.value=line.fatherStats[key]||0;
+    const mother=el('input',''); mother.type='number'; mother.min='0'; mother.value=line.motherStats[key]||0;
+    const bestEl=el('strong','');
+    const targetEl=el('strong','target-number');
+    function sync(){
+      line.fatherStats[key]=Math.max(0,+father.value||0);
+      line.motherStats[key]=Math.max(0,+mother.value||0);
+      const best=Math.max(line.fatherStats[key],line.motherStats[key]);
+      bestEl.textContent=best;
+      targetEl.textContent=best+2;
+      saveLines();
     }
-    counter('fM'); counter('mM');
-    ti.appendChild(ctrl); grid.appendChild(ti);
+    father.oninput=sync; mother.oninput=sync; sync();
+    row.appendChild(el('span','breeding-stat-name',HELPER_STAT_LABELS[i]));
+    row.appendChild(father); row.appendChild(mother); row.appendChild(bestEl); row.appendChild(targetEl);
+    table.appendChild(row);
   });
-  sec.appendChild(grid); return sec;
+  sec.appendChild(table);
+  return sec;
 }
 
-function buildMutCheck(line){
-  const sec=el('div','mutation-check');
-  const tStat=line.targetStat||'Melee';
-  sec.appendChild(el('div','mutation-check-title',`Baby ${tStat} Stat — Is it a Mutation?`));
-  const row=el('div','check-row');
-  const inp=el('input',''); inp.type='number'; inp.placeholder=`Enter baby's ${tStat} level…`; inp.value=line.checkVal||'';
-  const btn=el('button','btn btn-primary','Check');
-  const res=el('div','check-result','');
-  function check(){
-    const val=+inp.value; if(!val&&val!==0){ res.className='check-result'; return; }
-    const sk=tStat.toLowerCase();
-    const parentMax=Math.max(+(line.fatherStats[sk]||0),+(line.motherStats[sk]||0));
-    const isMut=val>parentMax+0.5;
-    res.className='check-result '+(isMut?'yes':'no');
-    res.innerHTML=isMut?`✅ YES — Mutation! Baby ${tStat} ${val} > parent max ${parentMax}`:`❌ No mutation. Baby ${tStat} ${val} ≤ parent max ${parentMax}`;
-    line.checkVal=inp.value; saveLines();
-  }
-  btn.onclick=check; inp.onkeydown=e=>{ if(e.key==='Enter')check(); }; inp.oninput=()=>{ line.checkVal=inp.value; saveLines(); };
-  row.appendChild(inp); row.appendChild(btn); sec.appendChild(row); sec.appendChild(res); return sec;
+function buildBabyStatChecker(line){
+  const sec=el('section','project-section baby-checker');
+  sec.appendChild(el('div','stat-section-title','BABY CHECKER — ENTER BABY POINT LEVELS'));
+  const grid=el('div','baby-check-grid');
+  HELPER_STAT_KEYS.forEach((key,i)=>{
+    const card=el('div','baby-check-card'+(line.targetStat.toLowerCase()===key?' is-target':''));
+    const label=el('label','',HELPER_STAT_LABELS[i]);
+    const input=el('input',''); input.type='number'; input.min='0'; input.placeholder='Baby pts'; input.value=line.babyStats[key] ?? '';
+    const result=el('div','baby-check-result','—');
+    function sync(){
+      const raw=input.value;
+      line.babyStats[key]=raw;
+      const baby=raw==='' ? null : +raw;
+      const father=+(line.fatherStats[key]||0);
+      const mother=+(line.motherStats[key]||0);
+      const best=Math.max(father,mother);
+      card.classList.remove('mutated','matched','missed');
+      if(baby === null || !Number.isFinite(baby)) result.textContent='Enter baby points';
+      else if(baby >= best+2){ card.classList.add('mutated'); result.innerHTML=`✅ New mutation (${baby} / target ${best+2})`; }
+      else if(baby === best){ card.classList.add('matched'); result.innerHTML=`Inherited best parent (${best})`; }
+      else { card.classList.add('missed'); result.innerHTML=`Below best parent (${best})`; }
+      saveLines();
+    }
+    input.oninput=sync; sync();
+    card.appendChild(label); card.appendChild(input); card.appendChild(result); grid.appendChild(card);
+  });
+  sec.appendChild(grid);
+  return sec;
 }
 
 function buildStack(line){
-  const sec=el('div','stack-section');
-  const lbl=el('div','stack-label'); lbl.innerHTML='Mutation Stack <span class="stack-max-label">Max: </span>';
+  const sec=el('div','stack-section project-stack');
+  const lbl=el('div','stack-label'); lbl.innerHTML='Mutation Stack <span class="stack-max-label">Max clean-side target: </span>';
   const maxInp=el('input','stack-max-input'); maxInp.type='number'; maxInp.min='1'; maxInp.value=line.mutMax||20;
   maxInp.oninput=()=>{ line.mutMax=+maxInp.value||20; updateStack(); saveLines(); };
   qs('.stack-max-label',lbl).appendChild(maxInp); sec.appendChild(lbl);
@@ -185,12 +214,13 @@ function buildStack(line){
   const valEl=el('div','stack-val',line.mutStack||0);
   const plus=el('button','stack-btn','+');
   const outOf=el('span','');
-  function updateStack(){ valEl.textContent=line.mutStack; const mx=line.mutMax||20; valEl.className='stack-val'+(line.mutStack>mx?' over':''); outOf.textContent=' / '+mx; }
+  const hint=el('small','stack-hint','Keep the active mutation side below the max when possible for normal mutation chances.');
+  function updateStack(){ valEl.textContent=line.mutStack; const mx=line.mutMax||20; valEl.className='stack-val'+(line.mutStack>=mx?' over':''); outOf.textContent=' / '+mx; }
   updateStack();
   minus.onclick=()=>{ line.mutStack=Math.max(0,(line.mutStack||0)-1); updateStack(); saveLines(); };
   plus.onclick =()=>{ line.mutStack=(line.mutStack||0)+1; updateStack(); saveLines(); };
   ctrl.appendChild(minus); ctrl.appendChild(valEl); ctrl.appendChild(outOf); ctrl.appendChild(plus);
-  sec.appendChild(ctrl); return sec;
+  sec.appendChild(ctrl); sec.appendChild(hint); return sec;
 }
 
 // ─── STAT CALCULATOR ─────────────────────────────────────────
@@ -207,20 +237,114 @@ const CALC_STAT_META = [
   { key:'melee', abbr:'DMG' },
 ];
 
+function newCalcDraft(dinoName='',mode='wild'){
+  return { dinoName, mode, level:150, stats:['','','','','',''], points:[null,null,null,null,null,null] };
+}
+
+function ensureCalcDraft(){
+  if(!calcDraft) calcDraft=newCalcDraft(calcDino?.name || '',calcMode);
+  calcDraft.dinoName=calcDino?.name || calcDraft.dinoName || '';
+  calcDraft.mode=calcMode;
+  calcDraft.stats ||= ['','','','','',''];
+  calcDraft.points ||= [null,null,null,null,null,null];
+  calcDraft.level ||= 150;
+  return calcDraft;
+}
+
+function renderSavedCreatures(){
+  const list=document.getElementById('saved-creature-list');
+  if(!list) return;
+  list.innerHTML='';
+  if(!savedCreatures.length){
+    list.innerHTML='<div class="empty-saved">No saved creatures yet. Fill out the calculator and press Save Creature.</div>';
+    return;
+  }
+  savedCreatures.forEach(saved=>{
+    const item=el('div','saved-creature-item'+(saved.id===activeSavedCreatureId?' active':''));
+    const btn=el('button','saved-creature-open');
+    btn.type='button';
+    const used=(saved.points || []).filter(p=>p !== null).reduce((sum,p)=>sum+p,0);
+    btn.innerHTML=`<strong>${saved.name}</strong><span>${saved.dinoName} · ${saved.mode === 'hatched' ? 'Fresh hatch / egg' : 'Wild'} · L${saved.level}</span><small>${used} visible pts saved</small>`;
+    btn.onclick=()=>loadSavedCreature(saved.id);
+    const del=el('button','saved-creature-delete','×');
+    del.type='button';
+    del.setAttribute('aria-label',`Delete ${saved.name}`);
+    del.onclick=()=>{ savedCreatures=savedCreatures.filter(c=>c.id!==saved.id); if(activeSavedCreatureId===saved.id) activeSavedCreatureId=null; saveSavedCreatures(); renderSavedCreatures(); };
+    item.appendChild(btn); item.appendChild(del); list.appendChild(item);
+  });
+}
+
+function loadSavedCreature(id){
+  const saved=savedCreatures.find(c=>c.id===id);
+  if(!saved) return;
+  const dino=UNIQUE_DINOS.find(d=>d.name===saved.dinoName);
+  if(!dino) return;
+  activeSavedCreatureId=id;
+  calcDino=dino;
+  calcMode=saved.mode || 'wild';
+  calcDraft={
+    dinoName:saved.dinoName,
+    mode:calcMode,
+    level:saved.level || 150,
+    stats:[...(saved.stats || [])].slice(0,6),
+    points:[...(saved.points || [])].slice(0,6),
+  };
+  while(calcDraft.stats.length<6) calcDraft.stats.push('');
+  while(calcDraft.points.length<6) calcDraft.points.push(null);
+  renderCalc();
+  updateCalcRight();
+}
+
+function saveCurrentCreature(level,points,statValues){
+  if(!calcDino) return;
+  const stats=statValues.map(v=>String(v ?? ''));
+  const calculatedPoints=points.map(p=>p === undefined ? null : p);
+  const timestamp=new Date().toISOString();
+  const existing=activeSavedCreatureId ? savedCreatures.find(c=>c.id===activeSavedCreatureId) : null;
+  const nameBase=`${calcDino.name} ${calcMode === 'hatched' ? 'Fresh Hatch' : 'Wild'} L${level}`;
+  const saved={
+    id: existing?.id || Date.now()+Math.random(),
+    name: existing?.name || nameBase,
+    dinoName: calcDino.name,
+    mode: calcMode,
+    level,
+    stats,
+    points: calculatedPoints,
+    updatedAt: timestamp,
+  };
+  if(existing) Object.assign(existing,saved);
+  else savedCreatures.unshift(saved);
+  activeSavedCreatureId=saved.id;
+  calcDraft={ dinoName:calcDino.name, mode:calcMode, level, stats, points:calculatedPoints };
+  saveSavedCreatures();
+  renderSavedCreatures();
+}
+
 function renderCalc(){
   const dinoList=document.getElementById('calc-dino-list');
   const calcSearch=document.getElementById('calc-search');
+  if(!dinoList || !calcSearch) return;
   function renderList(filter){
     dinoList.innerHTML='';
     const q=filter.toLowerCase();
     UNIQUE_DINOS.filter(d=>!q||d.name.toLowerCase().includes(q)).forEach(d=>{
       const item=el('button','calc-dino-item'+(calcDino&&calcDino.name===d.name?' selected':''),d.name);
       item.type='button';
-      item.onclick=()=>{ calcDino=d; updateCalcRight(); renderList(calcSearch.value); };
+      item.onclick=()=>{
+        calcDino=d;
+        calcMode=calcDraft?.dinoName===d.name ? calcDraft.mode || calcMode : 'wild';
+        calcDraft=newCalcDraft(d.name,calcMode);
+        activeSavedCreatureId=null;
+        updateCalcRight();
+        renderList(calcSearch.value);
+        renderSavedCreatures();
+      };
       dinoList.appendChild(item);
     });
   }
-  renderList(''); calcSearch.oninput=()=>renderList(calcSearch.value);
+  renderList(calcSearch.value || '');
+  calcSearch.oninput=()=>renderList(calcSearch.value);
+  renderSavedCreatures();
 }
 
 function formatStatValue(value,index){
@@ -430,6 +554,7 @@ function updateCalcRight(){
   const right=document.getElementById('calc-right'); right.innerHTML='';
   if(!calcDino){ right.innerHTML='<div class="calc-hint">Select a dinosaur to start calculating stat points.</div>'; return; }
   const d=calcDino;
+  const draft=ensureCalcDraft();
 
   const info=el('section','calc-info');
   info.appendChild(el('h3','','Base Stats (Level 1 Wild)'));
@@ -450,20 +575,27 @@ function updateCalcRight(){
   wildBtn.type='button';
   const hatchedBtn=el('button','level-type-btn'+(calcMode === 'hatched' ? ' active' : ''),'Freshly Hatched Dino');
   hatchedBtn.type='button';
-  wildBtn.onclick=()=>{ calcMode='wild'; updateCalcRight(); };
-  hatchedBtn.onclick=()=>{ calcMode='hatched'; updateCalcRight(); };
+  wildBtn.onclick=()=>{ calcMode='wild'; draft.mode=calcMode; activeSavedCreatureId=null; updateCalcRight(); renderSavedCreatures(); };
+  hatchedBtn.onclick=()=>{ calcMode='hatched'; draft.mode=calcMode; activeSavedCreatureId=null; updateCalcRight(); renderSavedCreatures(); };
   modeRow.appendChild(wildBtn); modeRow.appendChild(hatchedBtn);
   calc.appendChild(modeRow);
 
   const top=el('div','wild-calc-top');
   const levelField=el('label','wild-level-field');
   levelField.innerHTML=`<span>${calcMode === 'hatched' ? 'Baby Level (Fresh / Unleveled)' : 'Creature Level (Wild Only)'}</span>`;
-  const levelInput=el('input','calc-stat-input'); levelInput.type='number'; levelInput.min='1'; levelInput.value='150';
+  const levelInput=el('input','calc-stat-input'); levelInput.type='number'; levelInput.min='1'; levelInput.value=draft.level || 150;
   levelField.appendChild(levelInput);
   top.appendChild(levelField);
   const summary=el('div','calc-summary','');
   top.appendChild(summary);
   calc.appendChild(top);
+
+  const saveRow=el('div','calc-save-row');
+  const saveBtn=el('button','btn btn-primary','Save Creature');
+  saveBtn.type='button';
+  const saveStatus=el('span','save-status','Saved creatures stay in this browser.');
+  saveRow.appendChild(saveBtn); saveRow.appendChild(saveStatus);
+  calc.appendChild(saveRow);
 
   const grid=el('div','dododex-grid');
   const rows=[];
@@ -476,6 +608,7 @@ function updateCalcRight(){
     const statInput=el('input','calc-stat-input observed-stat');
     statInput.type='number'; statInput.min='0'; statInput.step='any';
     statInput.placeholder=formatStatValue(valueForStatPoints(d,i,0,calcMode),i).replace('%','');
+    statInput.value=draft.stats?.[i] ?? '';
     const controls=el('div','point-stepper');
     const minus=el('button','point-step-btn','−'); minus.type='button'; minus.setAttribute('aria-label',`Remove one ${stat} point`);
     const pointBox=el('span','point-step-value','0 pts');
@@ -487,7 +620,9 @@ function updateCalcRight(){
       const current=calculateStatPoints(statInput.value,d,i,calcMode);
       const next=Math.max(0,(current ?? 0)+delta);
       statInput.value=formatStatInputValue(valueForStatPoints(d,i,next,calcMode),i);
+      activeSavedCreatureId=null;
       recalc();
+      renderSavedCreatures();
     }
     minus.onclick=()=>nudgePoint(-1);
     plus.onclick=()=>nudgePoint(1);
@@ -530,6 +665,11 @@ function updateCalcRight(){
       const pct=pts === null ? 0 : Math.min(100,(pts/Math.max(1,maxPoints))*100);
       qs('span',bar).style.width=`${pct}%`;
     });
+    draft.level=level;
+    draft.mode=calcMode;
+    draft.dinoName=d.name;
+    draft.stats=rows.map(({statInput})=>statInput.value);
+    draft.points=points.map(p=>p === undefined ? null : p);
     const wasted=Math.max(0,maxPoints-used);
     const overBy=Math.max(0,used-maxPoints);
     summary.className='calc-summary'+(overBy?' over':'');
@@ -588,8 +728,13 @@ function updateCalcRight(){
     ctx.fill(); ctx.stroke();
   }
 
-  levelInput.oninput=recalc;
-  rows.forEach(({statInput})=>{ statInput.oninput=recalc; });
+  saveBtn.onclick=()=>{
+    recalc();
+    saveCurrentCreature(Math.max(1,+levelInput.value||1),draft.points,draft.stats);
+    saveStatus.textContent='Saved! Click it in the sidebar to reload this chart.';
+  };
+  levelInput.oninput=()=>{ activeSavedCreatureId=null; recalc(); renderSavedCreatures(); };
+  rows.forEach(({statInput})=>{ statInput.oninput=()=>{ activeSavedCreatureId=null; recalc(); renderSavedCreatures(); }; });
   recalc();
 
   right.appendChild(calc);

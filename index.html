@@ -21,6 +21,7 @@
   <div class="nav-tabs">
     <button class="nav-tab active" data-page="helper">Mutation Helper</button>
     <button class="nav-tab" data-page="calc">Stat Calculator</button>
+    <button class="nav-tab" data-page="tutorial">Tutorial</button>
   </div>
 </nav>
 
@@ -28,22 +29,18 @@
 <div class="page active" id="page-helper">
 
   <div class="how-to">
-    <strong>How it works:</strong>
-    Enter parent stat <em>levels</em> (not values) →
-    Target column shows what to look for (+2) →
-    Type baby's stat to instantly check if it's a mutation →
-    Track stacks with the counter.
-    <strong>Everything saves automatically.</strong>
+    <strong>Mutation Helper:</strong> Build breeding projects, compare father/mother wild stat levels, see exact +2 mutation targets, check a baby's six visible stats at once, and track mutation stacks.
+    <strong>Everything saves automatically in your browser.</strong>
   </div>
 
   <div class="lines-header">
-    <h2>Breeding Lines</h2>
+    <h2>Breeding Projects</h2>
   </div>
 
   <div id="lines-container"></div>
 
   <button class="add-line-btn" id="add-line-btn">
-    <span>+</span> Add Another Breeding Line
+    <span>+</span> Add Another Breeding Project
   </button>
 
 </div>
@@ -65,6 +62,11 @@
       <h3>Select Dinosaur</h3>
       <input class="calc-search" id="calc-search" type="text" placeholder="Search…" />
       <div class="calc-dino-list" id="calc-dino-list"></div>
+
+      <div class="saved-creature-sidebar">
+        <h3>Saved Creatures</h3>
+        <div class="saved-creature-list" id="saved-creature-list"></div>
+      </div>
     </div>
 
     <!-- Right: calculator -->
@@ -73,6 +75,58 @@
     </div>
 
   </div>
+
+</div>
+
+<!-- ══════════════ TUTORIAL PAGE ══════════════ -->
+<div class="page" id="page-tutorial">
+
+  <div class="how-to">
+    <strong>Tutorial:</strong> This page explains every major button and input in ASEM so you can use the calculator and breeding helper without guessing.
+  </div>
+
+  <section class="tutorial-card">
+    <h2>Navigation</h2>
+    <ul>
+      <li><strong>Mutation Helper</strong> opens your breeding project tracker.</li>
+      <li><strong>Stat Calculator</strong> opens the wild/fresh hatch stat point calculator and saved creature file list.</li>
+      <li><strong>Tutorial</strong> opens this reference page.</li>
+    </ul>
+  </section>
+
+  <section class="tutorial-card">
+    <h2>Stat Calculator Buttons</h2>
+    <ul>
+      <li><strong>Select Dinosaur</strong>: choose the species whose official base stats should be used.</li>
+      <li><strong>Wild Dino</strong>: use this for untouched wild creatures.</li>
+      <li><strong>Freshly Hatched Dino</strong>: use this for fresh babies or wild-stolen eggs with no imprint and no manual levels.</li>
+      <li><strong>Baby/Creature Level</strong>: enter the level shown in game so ASEM can show visible points versus hidden speed points.</li>
+      <li><strong>Stat value boxes</strong>: type the six visible in-game values: Health, Stamina, Oxygen, Food, Weight, and Melee.</li>
+      <li><strong>− / + point buttons</strong>: nudge a stat down or up by exactly one wild/inherited point and fill the matching in-game value.</li>
+      <li><strong>Save Creature</strong>: saves the selected dino, mode, level, stat values, calculated points, and chart data to the sidebar.</li>
+      <li><strong>Saved Creatures list</strong>: click a saved item to reload that dino and redraw the six-stat chart; use Delete to remove it.</li>
+    </ul>
+  </section>
+
+  <section class="tutorial-card">
+    <h2>Mutation Helper Buttons</h2>
+    <ul>
+      <li><strong>Add Another Breeding Project</strong>: creates a new saved project card.</li>
+      <li><strong>Project name</strong>: click the title text to rename the breeding line.</li>
+      <li><strong>▼ / ▶</strong>: collapse or expand a project.</li>
+      <li><strong>Target Stat</strong>: marks the stat you are currently trying to mutate.</li>
+      <li><strong>Father/Mother stat levels</strong>: enter wild/inherited point levels, not displayed stat values.</li>
+      <li><strong>Baby check boxes</strong>: enter a baby's stat levels to see whether it inherited the best stat or gained a new +2 mutation.</li>
+      <li><strong>Mutation Stack − / +</strong>: track how many mutations are on the active side of the line.</li>
+      <li><strong>Delete</strong>: removes a project from local storage.</li>
+    </ul>
+  </section>
+
+  <section class="tutorial-card">
+    <h2>Storage & Accuracy Notes</h2>
+    <p>ASEM stores saved creatures and breeding projects only in your browser localStorage. Clearing browser data will remove them.</p>
+    <p>Fresh hatch calculations assume no imprint, no manual domestic levels, and default stat data from <code>data.js</code>. Wild-stolen egg creatures use the step-matching hatch logic built for Wyvern, Rock Drake, Magmasaur, and Deinonychus.</p>
+  </section>
 
 </div>
 
