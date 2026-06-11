@@ -2,9 +2,8 @@
 //  ASEM — ARK Stat & Evolution Manager
 //  All data sourced from ARK wiki (wiki.gg/ark)
 //  Stats: Health, Stamina, Oxygen, Food, Weight, Melee, Speed, Torpor
-//  base = level-1 wild value  |  wild = per wild/inherited-level increase
-//  dom  = per domestic-level multiplier add
-//  ta/tm are optional additive/multiplicative taming bonuses for freshly hatched stat extraction
+//  base = level-1 tamed value  |  wild = per wild-level increase
+//  dom  = per domestic-level multiplier add  |  tb = taming bonus mult
 // ══════════════════════════════════════════════════════════════
 
 const STATS = ['Health','Stamina','Oxygen','Food','Weight','Melee','Speed','Torpor'];
@@ -14,8 +13,8 @@ const DINOS_RAW = [
 
   // ══ A ══
   { name:"Achatina",
-    base:[75,100,0,450,150,0,100,50],
-    wild:[15,10,0,45,3,0,0,3],
+    base:[200,200,150,1500,75,0,100,250],
+    wild:[40,20,15,150,1.5,0,1,7.5],
     dom:[0.2,0.2,0,0,0.04,0,0,0],
     tb:[0.14,0.14,0.14,0.14,0.14,0,0,0] },
 
@@ -142,11 +141,10 @@ const DINOS_RAW = [
     tb:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
 
   { name:"Carcharodontosaurus",
-    base:[70000,480,150,4000,650,100,100,6000],
-    wild:[56,48,15,400,13,5,0,360],
-    dom:[0.0008,0.1,0,0,0.01,0.0085,0,0],
-    ta:[-54000,0,0,0,0,-80,0,0],
-    tm:[0,0,0,0,0,0,0,0] },
+    base:[70000,480,150,4000,650,200,100,6000],
+    wild:[56,48,15,400,13,20,1,360],
+    dom:[0.2,0.2,0,0,0.04,0.17,0,0],
+    tb:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
 
   { name:"Carnotaurus",
     base:[420,300,150,1500,200,120,100,350],
@@ -375,11 +373,10 @@ const DINOS_RAW = [
     tb:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
 
   { name:"Giganotosaurus",
-    base:[80000,400,150,4000,700,100,100,10000],
-    wild:[40,0.2,0.375,10,7,5,0,600],
-    dom:[0.0004,0.01,0.025,0.025,0.01,0.0085,0,0],
-    ta:[-63000,0,0,0,0,-80,0,0],
-    tm:[0,0,0,0,0,0,0,0] },
+    base:[80000,2100,150,40000,700,100,100,10000],
+    wild:[40,0.2,0.375,10,7,5,1,500],
+    dom:[0.2,0.2,0,0,0.04,0.17,0,0],
+    tb:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
 
   { name:"Gigantoraptor",
     base:[1050,500,150,4000,350,100,100,800],
@@ -776,11 +773,10 @@ const DINOS_RAW = [
     tb:[0,0,0,0,0,0,0,0] },
 
   { name:"Rock Elemental",
-    base:[50000,1000,150,6000,660,100,100,5000],
-    wild:[625,100,15,600,13.2,5,0,250],
-    dom:[0.027,0.1,0,0.1,0.04,0.017,0,0],
-    ta:[-22000,0,0,0,0,7,0,0],
-    tm:[0,0,0,0,0,0.176,0,0] },
+    base:[6200,400,150,4000,3000,100,100,4000],
+    wild:[1240,40,15,400,60,10,1,200],
+    dom:[0.2,0.2,0,0,0.04,0.17,0,0],
+    tb:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
 
   { name:"Rollrat",
     base:[475,300,150,4000,275,100,100,475],
@@ -1139,14 +1135,6 @@ const DINOS_RAW = [
 ];
 
 // Normalise and sort
-const DEFAULT_TAME_ADD = [0.07,0,0,0,0,7,0,0.5];
-const DEFAULT_TAME_MULT = [0,0,0,0,0,0.176,0,0];
-
 const UNIQUE_DINOS = DINOS_RAW.map(d => ({
-  name: d.name,
-  base: d.base,
-  wild: d.wild,
-  dom: d.dom,
-  tameAdd: d.ta || DEFAULT_TAME_ADD,
-  tameMult: d.tm || DEFAULT_TAME_MULT,
+  name: d.name, base: d.base, wild: d.wild, dom: d.dom, tameBonus: d.tb,
 })).sort((a,b) => a.name.localeCompare(b.name));
