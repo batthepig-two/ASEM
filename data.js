@@ -9,7 +9,7 @@
 // ══════════════════════════════════════════════════════════════
 
 const STATS = ['Health','Stamina','Oxygen','Food','Weight','Melee','Speed','Torpor'];
-
+ 
 // tb = taming effectiveness bonus per stat (0 = no bonus from TE)
 const DINOS_RAW = [
 
