@@ -1,15 +1,15 @@
 :root {
-  --bg: #f5f7fb;
-  --surface: #eef4ff;
-  --surface2: #dbeafe;
-  --accent: #2563eb;
-  --accent-dark: #1d4ed8;
-  --accent-glow: #e8f1ff;
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --surface2: #f6f0ff;
+  --accent: #6d28d9;
+  --accent-dark: #4c1d95;
+  --accent-glow: #f3e8ff;
   --text: #172033;
   --text-muted: #4b5f7a;
   --text-dim: #708198;
-  --border: #cbd5e1;
-  --border-light: #9fb3ce;
+  --border: #d8c7f3;
+  --border-light: #b995ec;
   --danger: #dc2626;
   --warn: #d97706;
   --success: #15803d;
@@ -1202,9 +1202,13 @@ img, canvas, svg { max-width: 100%; }
   border-radius: 20px;
   display: grid;
   place-items: center;
-  background: #fff;
-  font-size: 36px;
+  background: var(--accent-glow);
   flex: 0 0 auto;
+}
+.taming-creature-mark img {
+  max-width: 54px;
+  max-height: 54px;
+  object-fit: contain;
 }
 .taming-card { padding: 14px; }
 .taming-controls {
@@ -1230,6 +1234,8 @@ img, canvas, svg { max-width: 100%; }
   font: inherit;
 }
 .taming-controls input:focus { outline: none; border-color: var(--accent); }
+.taming-controls input[type="range"] { accent-color: var(--accent); padding: 0; }
+.taming-controls label > strong { color: var(--accent); font-size: 12px; }
 .taming-controls .toggle-row {
   justify-content: space-between;
   align-items: flex-start;
@@ -1285,6 +1291,20 @@ img, canvas, svg { max-width: 100%; }
   flex-direction: column;
   gap: 8px;
 }
+
+.taming-weapon-scroller {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  padding: 2px 2px 12px;
+  scrollbar-color: var(--accent) var(--accent-glow);
+}
+.taming-weapon-scroller .taming-item.weapon {
+  flex: 0 0 min(420px, 86vw);
+  scroll-snap-align: start;
+}
 .taming-item {
   display: grid;
   grid-template-columns: 44px minmax(150px, 1fr) repeat(3, minmax(74px, auto));
@@ -1309,8 +1329,20 @@ img, canvas, svg { max-width: 100%; }
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--surface);
-  font-size: 23px;
+  overflow: hidden;
 }
+.asset-icon img {
+  max-width: 32px;
+  max-height: 32px;
+  object-fit: contain;
+  display: block;
+}
+.asset-icon.weapon-pair {
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  padding: 3px;
+}
+.asset-icon.weapon-pair img { max-width: 24px; max-height: 24px; }
 .taming-item-main strong,
 .taming-item-main span,
 .taming-item-main small { display: block; }

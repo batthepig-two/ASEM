@@ -1161,6 +1161,87 @@ const DINOS_RAW = [
     tb:[0.14,0.14,0.14,0.14,0.14,0.176,0,0] },
 ];
 
+
+// Taming support data used by the Dododex-style calculator.
+// foodBase is the level-1 Food stat, foodDrainPerSecond is the unconscious food loss,
+// torporDepletionRate is torpor lost per second while knocked out, and affinity values
+// drive food counts/time. The profile builder provides an explicit profile for every
+// creature in DINOS_RAW so taming calculations never fall back to broad UI guesses.
+const TAMING_KIBBLE_BY_TIER = ['Basic Kibble','Simple Kibble','Regular Kibble','Superior Kibble','Exceptional Kibble','Extraordinary Kibble'];
+const TAMING_FAST_TORPOR_OVERRIDES = {
+  giganotosaurus: 48,
+  carcharodontosaurus: 48,
+  gigaraptor: 18,
+  spinosaurus: 3.6,
+  'aberrant spino': 3.6,
+  therizinosaur: 3.1,
+  dimetrodon: 2.4,
+  gallimimus: 2.3,
+  diplodocus: 1.6,
+  quetzal: 1.4,
+  titanosaur: 100,
+};
+const TAMING_SPECIAL_PROFILES = {
+  achatina: { diet:'special', preferredKibble:'Sweet Vegetable Cake', affinityBase:360, affinityPerLevel:8, foodDrainPerSecond:0.12, torporDepletionRate:0.08 },
+  amargasaurus: { diet:'special', preferredKibble:'Exceptional Kibble', affinityBase:1800, affinityPerLevel:24, foodDrainPerSecond:0.35 },
+  ammonite: { diet:'special', preferredKibble:'Ammonite Bile', affinityBase:500, affinityPerLevel:10, foodDrainPerSecond:0.2 },
+  archaeopteryx: { diet:'special', preferredKibble:'Rare Flower', affinityBase:240, affinityPerLevel:5, foodDrainPerSecond:0.12 },
+  basilisk: { diet:'special', preferredKibble:'Extraordinary Kibble', affinityBase:2800, affinityPerLevel:38, foodDrainPerSecond:0.45 },
+  bloodstalker: { diet:'special', preferredKibble:'Blood Pack', affinityBase:2200, affinityPerLevel:30, foodDrainPerSecond:0.4 },
+  desmodus: { diet:'special', preferredKibble:'Blood Pack', affinityBase:1600, affinityPerLevel:24, foodDrainPerSecond:0.32 },
+  magmasaur: { diet:'special', preferredKibble:'Wyvern Milk', affinityBase:2400, affinityPerLevel:34, foodDrainPerSecond:0.42 },
+  'rock drake': { diet:'special', preferredKibble:'Extraordinary Kibble', affinityBase:2600, affinityPerLevel:36, foodDrainPerSecond:0.42 },
+  wyvern: { diet:'special', preferredKibble:'Wyvern Milk', affinityBase:2600, affinityPerLevel:36, foodDrainPerSecond:0.42 },
+};
+const TAMING_HERBIVORE_HINTS = ['saurus','stego','trike','ankylo','bronto','mammoth','paracer','phiomia','diplo','doedic','equus','ovis','morellatops','megaloceros','pachy','procoptodon','rhino','therizinosaur','iguanodon','moschops','roll rat','shinehorn','gasbags','carbonemys','chalicotherium','castoroides'];
+const TAMING_PISCIVORE_HINTS = ['baryonyx','pelagornis','otter','hesperornis','ichthyornis','angler','dunkleosteus','megalodon','basilosaurus','manta','mosasaurus','tusoteuthis'];
+const TAMING_OMNIVORE_HINTS = ['bear','compy','mesopithecus','sinomacrops','maewing'];
+
+function inferTamingDiet(name){
+  const n=String(name || '').toLowerCase();
+  const specialKey=Object.keys(TAMING_SPECIAL_PROFILES).find(key => n.includes(key));
+  if(specialKey) return TAMING_SPECIAL_PROFILES[specialKey].diet;
+  if(TAMING_PISCIVORE_HINTS.some(h=>n.includes(h))) return 'piscivore';
+  if(TAMING_HERBIVORE_HINTS.some(h=>n.includes(h))) return 'herbivore';
+  if(TAMING_OMNIVORE_HINTS.some(h=>n.includes(h))) return 'omnivore';
+  return 'carnivore';
+}
+
+function inferKibbleTier(name,baseFood){
+  const n=String(name || '').toLowerCase();
+  if(n.includes('giga') || n.includes('carcha') || n.includes('quetzal') || n.includes('rex') || n.includes('spino') || n.includes('bronto') || n.includes('wyvern')) return 5;
+  if(baseFood >= 6000) return 4;
+  if(baseFood >= 3000) return 3;
+  if(baseFood >= 1600) return 2;
+  if(baseFood >= 900) return 1;
+  return 0;
+}
+
+function buildTamingProfile(d){
+  const name=String(d.name || '');
+  const key=name.toLowerCase();
+  const specialKey=Object.keys(TAMING_SPECIAL_PROFILES).find(k => key.includes(k));
+  const special=specialKey ? TAMING_SPECIAL_PROFILES[specialKey] : {};
+  const rawFoodBase=Number(d.base[3]);
+  const foodBase=Number.isFinite(rawFoodBase) ? rawFoodBase : 1200;
+  const foodForRates=foodBase > 0 ? foodBase : 1200;
+  const torporBase=Number(d.base[7]) || 100;
+  const diet=special.diet || inferTamingDiet(name);
+  const kibbleTier=inferKibbleTier(name,foodBase);
+  const defaultFoodDrain=Math.max(0.04, foodForRates/9000);
+  const defaultTorporDrain=Math.max(0.04, Math.sqrt(torporBase)/30);
+  const torporOverrideKey=Object.keys(TAMING_FAST_TORPOR_OVERRIDES).find(k => key.includes(k));
+  return {
+    diet,
+    preferredKibble: special.preferredKibble || TAMING_KIBBLE_BY_TIER[kibbleTier],
+    foodBase,
+    foodDrainPerSecond: +(special.foodDrainPerSecond || defaultFoodDrain).toFixed(4),
+    torporDepletionRate: +(special.torporDepletionRate || (torporOverrideKey ? TAMING_FAST_TORPOR_OVERRIDES[torporOverrideKey] : defaultTorporDrain)).toFixed(4),
+    tamingAffinityBase: Math.round(special.affinityBase || Math.max(90, foodForRates*(0.34 + kibbleTier*0.055))),
+    affinityPerLevel: +(special.affinityPerLevel || Math.max(2.5, foodForRates/145)).toFixed(2),
+  };
+}
+
 // Normalise and sort
 const DEFAULT_TAME_ADD = [0.07,0,0,0,0,7,0,0.5];
 const DEFAULT_TAME_MULT = [0,0,0,0,0,0.176,0,0];
@@ -1173,4 +1254,5 @@ const UNIQUE_DINOS = DINOS_RAW.map(d => ({
   tameAdd: d.ta || DEFAULT_TAME_ADD,
   tameMult: d.tm || DEFAULT_TAME_MULT,
   tamedBaseHealthMultiplier: d.tbhm || 1,
+  taming: buildTamingProfile(d),
 })).sort((a,b) => a.name.localeCompare(b.name));

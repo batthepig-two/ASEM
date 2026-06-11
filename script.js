@@ -745,52 +745,55 @@ function updateCalcRight(){
 
 // ─── TAMING CALCULATOR ───────────────────────────────────────
 let tamingDino=null;
-let tamingDraft={ level:150, tamingSpeed:1, foodDrain:1, weaponQuality:100, headshots:false };
+let tamingDraft={ level:150, tamingSpeed:1, foodDrain:1, weaponQuality:100, secondsBetweenHits:5, headshots:false };
+
+const ARK_ASSET_BASE = 'https://ark.wiki.gg/wiki/Special:Redirect/file/';
+function arkAsset(file){ return `${ARK_ASSET_BASE}${encodeURIComponent(file)}`; }
+function assetImg(file,alt){ return `<img src="${arkAsset(file)}" alt="${alt}" loading="lazy" decoding="async">`; }
 
 const TAMING_WEAPONS = [
-  { name:'Bow + Tranq Arrow', icon:'🏹', ammo:'Tranq Arrow', torpor:90, damage:20, reload:2.6, headshot:false, note:'Early-game option with slower torpor delivery.' },
-  { name:'Crossbow + Tranq Arrow', icon:'🏹', ammo:'Tranq Arrow', torpor:157.5, damage:35, reload:3.1, headshot:false, note:'Reliable water-safe knockout choice.' },
-  { name:'Longneck + Tranq Dart', icon:'🔫', ammo:'Tranq Dart', torpor:221, damage:26, reload:4.3, headshot:true, note:'Lower damage per torpor for fragile tames.' },
-  { name:'Longneck + Shocking Dart', icon:'⚡', ammo:'Shocking Tranquilizer Dart', torpor:442, damage:26, reload:4.3, headshot:true, note:'Expensive, fast, and strong torpor burst.' },
-  { name:'Compound Bow + Toxicant Arrow', icon:'☣️', ammo:'Toxicant Arrow', torpor:540, damage:135, reload:2.9, headshot:false, note:'High torpor but risky damage on low-health dinos.' },
-  { name:'Harpoon + Tranq Spear Bolt', icon:'⚓', ammo:'Tranq Spear Bolt', torpor:216, damage:36, reload:3.8, headshot:false, note:'Useful for underwater knockouts.' },
-  { name:'Slingshot + Stone', icon:'🪨', ammo:'Stone', torpor:18.9, damage:14, reload:1.8, headshot:true, note:'Primitive backup for very small targets.' },
-  { name:'Wooden Club', icon:'🪵', ammo:'Durability', torpor:40, damage:5, reload:1.1, headshot:false, note:'Melee torpor for small creatures.' },
-  { name:'Electric Prod', icon:'🔋', ammo:'One charge', torpor:266, damage:1, reload:2.4, headshot:false, note:'Single-use burst torpor for close-range tames.' },
-  { name:'Equus Buck Kick', icon:'🐎', ammo:'No ammo', torpor:180, damage:12, reload:2.2, headshot:false, note:'Creature-based torpor with no crafted ammo.' },
+  { name:'Bow + Tranq Arrow', asset:'Bow.png', ammoAsset:'Tranq_Arrow.png', ammo:'Tranq Arrow', torporInstant:40, torporOverTime:50, duration:4, damage:20, reload:2.6, headshot:false, note:'Early-game arrows. Wait a few seconds between shots so the delayed torpor can finish ticking.' },
+  { name:'Crossbow + Tranq Arrow', asset:'Crossbow.png', ammoAsset:'Tranq_Arrow.png', ammo:'Tranq Arrow', torporInstant:70, torporOverTime:87.5, duration:4, damage:35, reload:3.1, headshot:false, note:'Reliable water-safe knockout choice with stronger arrow damage.' },
+  { name:'Longneck + Tranq Dart', asset:'Longneck_Rifle.png', ammoAsset:'Tranquilizer_Dart.png', ammo:'Tranquilizer Dart', torporInstant:156, torporOverTime:65, duration:5, damage:26, reload:4.3, headshot:true, note:'Lower damage per torpor for fragile tames.' },
+  { name:'Longneck + Shocking Dart', asset:'Longneck_Rifle.png', ammoAsset:'Shocking_Tranquilizer_Dart.png', ammo:'Shocking Tranquilizer Dart', torporInstant:312, torporOverTime:130, duration:5, damage:26, reload:4.3, headshot:true, note:'Expensive, fast, and strong torpor burst.' },
+  { name:'Compound Bow + Toxicant Arrow', asset:'Compound_Bow.png', ammoAsset:'Toxicant_Arrow_(Mobile).png', ammo:'Toxicant Arrow', torporInstant:270, torporOverTime:270, duration:5, damage:135, reload:2.9, headshot:false, note:'Very high torpor, but risky direct damage on low-health creatures.' },
+  { name:'Harpoon + Tranq Spear Bolt', asset:'Harpoon_Launcher.png', ammoAsset:'Tranq_Spear_Bolt.png', ammo:'Tranq Spear Bolt', torporInstant:144, torporOverTime:72, duration:5, damage:36, reload:3.8, headshot:false, note:'Underwater-compatible knockout option.' },
+  { name:'Slingshot + Stone', asset:'Slingshot.png', ammoAsset:'Stone.png', ammo:'Stone', torporInstant:18.9, torporOverTime:0, duration:0, damage:14, reload:1.8, headshot:true, note:'Primitive backup for very small targets.' },
+  { name:'Wooden Club', asset:'Wooden_Club.png', ammoAsset:'Wood.png', ammo:'Durability', torporInstant:40, torporOverTime:0, duration:0, damage:5, reload:1.1, headshot:false, note:'Close-range torpor for small creatures.' },
+  { name:'Electric Prod', asset:'Electric_Prod.png', ammoAsset:'Sparkpowder.png', ammo:'One charge', torporInstant:266, torporOverTime:0, duration:0, damage:1, reload:2.4, headshot:false, note:'Single-use burst torpor for close-range tames.' },
+  { name:'Equus Buck Kick', asset:'Equus.png', ammoAsset:'Equus.png', ammo:'No ammo', torporInstant:180, torporOverTime:0, duration:0, damage:12, reload:2.2, headshot:false, note:'Creature-based torpor with no crafted ammo.' },
 ];
 
 const TAMING_NARCOTICS = [
-  { name:'Narcoberry', icon:'🫐', torpor:7.5, stack:100 },
-  { name:'Bio Toxin', icon:'🧪', torpor:80, stack:100 },
-  { name:'Narcotic', icon:'💊', torpor:40, stack:100 },
-  { name:'Ascerbic Mushroom', icon:'🍄', torpor:25, stack:100 },
+  { name:'Bio Toxin', asset:'Bio_Toxin.png', torpor:80, duration:16, stack:100 },
+  { name:'Narcotic', asset:'Narcotic.png', torpor:40, duration:8, stack:100 },
+  { name:'Ascerbic Mushroom', asset:'Ascerbic_Mushroom.png', torpor:25, duration:2, stack:100 },
+  { name:'Narcoberry', asset:'Narcoberry.png', torpor:7.5, duration:3, stack:100 },
 ];
 
 const TAMING_FOODS = [
-  { name:'Exceptional Kibble', icon:'🥚', diet:['carnivore','herbivore','omnivore'], affinity:500, interval:80, spoil:18000, tier:6 },
-  { name:'Superior Kibble', icon:'🥚', diet:['carnivore','herbivore','omnivore'], affinity:400, interval:75, spoil:18000, tier:5 },
-  { name:'Regular Kibble', icon:'🥚', diet:['carnivore','herbivore','omnivore'], affinity:300, interval:70, spoil:18000, tier:4 },
-  { name:'Simple Kibble', icon:'🥚', diet:['carnivore','herbivore','omnivore'], affinity:220, interval:65, spoil:18000, tier:3 },
-  { name:'Basic Kibble', icon:'🥚', diet:['carnivore','herbivore','omnivore'], affinity:160, interval:60, spoil:18000, tier:2 },
-  { name:'Raw Mutton', icon:'🍖', diet:['carnivore','omnivore'], affinity:190, interval:55, spoil:600, tier:5 },
-  { name:'Raw Prime Meat', icon:'🥩', diet:['carnivore','omnivore'], affinity:150, interval:50, spoil:300, tier:4 },
-  { name:'Cooked Prime Meat', icon:'🍗', diet:['carnivore','omnivore'], affinity:90, interval:45, spoil:1200, tier:3 },
-  { name:'Raw Meat', icon:'🍖', diet:['carnivore','omnivore'], affinity:50, interval:40, spoil:1200, tier:1 },
-  { name:'Mejoberry', icon:'🫐', diet:['herbivore','omnivore'], affinity:40, interval:40, spoil:1200, tier:1 },
-  { name:'Crops', icon:'🌽', diet:['herbivore','omnivore'], affinity:55, interval:45, spoil:3000, tier:2 },
-  { name:'Sweet Vegetable Cake', icon:'🍰', diet:['herbivore','omnivore'], affinity:180, interval:80, spoil:7200, tier:5 },
-  { name:'Rare Mushroom', icon:'🍄', diet:['herbivore','omnivore'], affinity:75, interval:50, spoil:12000, tier:3 },
-  { name:'Rare Flower', icon:'🌸', diet:['herbivore','omnivore'], affinity:70, interval:50, spoil:12000, tier:3 },
-  { name:'Fish Meat', icon:'🐟', diet:['piscivore','omnivore','carnivore'], affinity:35, interval:35, spoil:1200, tier:1 },
-  { name:'Raw Prime Fish', icon:'🐠', diet:['piscivore','omnivore','carnivore'], affinity:95, interval:45, spoil:300, tier:3 },
-  { name:'Ammonite Bile', icon:'🦪', diet:['special'], affinity:250, interval:60, spoil:7200, tier:5 },
-  { name:'Wyvern Milk', icon:'🥛', diet:['special'], affinity:400, interval:90, spoil:3600, tier:6 },
+  { name:'Extraordinary Kibble', asset:'Extraordinary_Kibble.png', diets:['carnivore','herbivore','omnivore','piscivore'], affinity:900, food:85.2, interval:80, spoil:259200, tier:7 },
+  { name:'Exceptional Kibble', asset:'Exceptional_Kibble.png', diets:['carnivore','herbivore','omnivore','piscivore'], affinity:550, food:85.2, interval:80, spoil:259200, tier:6 },
+  { name:'Superior Kibble', asset:'Superior_Kibble.png', diets:['carnivore','herbivore','omnivore','piscivore'], affinity:400, food:85.2, interval:75, spoil:259200, tier:5 },
+  { name:'Regular Kibble', asset:'Regular_Kibble.png', diets:['carnivore','herbivore','omnivore','piscivore'], affinity:300, food:85.2, interval:70, spoil:259200, tier:4 },
+  { name:'Simple Kibble', asset:'Simple_Kibble.png', diets:['carnivore','herbivore','omnivore','piscivore'], affinity:220, food:85.2, interval:65, spoil:259200, tier:3 },
+  { name:'Basic Kibble', asset:'Basic_Kibble.png', diets:['carnivore','herbivore','omnivore','piscivore'], affinity:160, food:85.2, interval:60, spoil:259200, tier:2 },
+  { name:'Raw Mutton', asset:'Raw_Mutton.png', diets:['carnivore','omnivore'], affinity:190, food:50, interval:50, spoil:600, tier:6 },
+  { name:'Raw Prime Meat', asset:'Raw_Prime_Meat.png', diets:['carnivore','omnivore'], affinity:150, food:50, interval:45, spoil:300, tier:5 },
+  { name:'Cooked Lamb Chop', asset:'Cooked_Lamb_Chop.png', diets:['carnivore','omnivore'], affinity:95, food:25, interval:45, spoil:1200, tier:4 },
+  { name:'Cooked Prime Meat', asset:'Cooked_Prime_Meat.png', diets:['carnivore','omnivore'], affinity:90, food:25, interval:45, spoil:1200, tier:3 },
+  { name:'Raw Meat', asset:'Raw_Meat.png', diets:['carnivore','omnivore'], affinity:50, food:50, interval:40, spoil:1200, tier:1 },
+  { name:'Raw Prime Fish Meat', asset:'Raw_Prime_Fish_Meat.png', diets:['piscivore','carnivore','omnivore'], affinity:95, food:25, interval:45, spoil:300, tier:4 },
+  { name:'Raw Fish Meat', asset:'Raw_Fish_Meat.png', diets:['piscivore','carnivore','omnivore'], affinity:35, food:25, interval:35, spoil:1200, tier:1 },
+  { name:'Crops', asset:'Rockarrot.png', diets:['herbivore','omnivore'], affinity:55, food:40, interval:45, spoil:3000, tier:3 },
+  { name:'Mejoberry', asset:'Mejoberry.png', diets:['herbivore','omnivore'], affinity:40, food:30, interval:40, spoil:1200, tier:2 },
+  { name:'Berries', asset:'Tintoberry.png', diets:['herbivore','omnivore'], affinity:30, food:20, interval:35, spoil:1200, tier:1 },
+  { name:'Sweet Vegetable Cake', asset:'Sweet_Vegetable_Cake.png', diets:['herbivore','omnivore','special'], affinity:180, food:500, interval:80, spoil:7200, tier:6 },
+  { name:'Rare Mushroom', asset:'Rare_Mushroom.png', diets:['herbivore','omnivore','special'], affinity:75, food:25, interval:50, spoil:12000, tier:3 },
+  { name:'Rare Flower', asset:'Rare_Flower.png', diets:['herbivore','omnivore','special'], affinity:70, food:25, interval:50, spoil:12000, tier:3 },
+  { name:'Ammonite Bile', asset:'Ammonite_Bile.png', diets:['special'], affinity:250, food:50, interval:60, spoil:7200, tier:5 },
+  { name:'Wyvern Milk', asset:'Wyvern_Milk.png', diets:['special'], affinity:400, food:1200, interval:90, spoil:3600, tier:6 },
 ];
-
-const HERBIVORE_HINTS = ['saurus','stego','trike','ankylo','bronto','mammoth','paracer','phiomia','diplo','doedic','equus','ovis','morellatops','megaloceros','pachy','procoptodon','rhino','therizinosaur','iguanodon','moschops','roll rat','shinehorn','gasbags'];
-const PISCIVORE_HINTS = ['baryonyx','pelagornis','otter','hesperornis','ichthyornis','angler','dunkleosteus','megalodon','basilosaurus','manta','mosasaurus','tusoteuthis'];
-const SPECIAL_FOOD_HINTS = ['wyvern','rock drake','magmasaur','basilisk','amargasaurus','archaeopteryx','achatina','bloodstalker','desmodus'];
 
 function renderTaming(){
   const dinoList=document.getElementById('taming-dino-list');
@@ -810,13 +813,17 @@ function renderTaming(){
   search.oninput=()=>renderList(search.value);
 }
 
+function tamingProfileForDino(dino){
+  const fallbackFood=Number(dino?.base?.[3]) || 1200;
+  const fallbackTorpor=tamingTorporForLevel(dino || {base:[0,0,0,0,0,0,0,100],wild:[0,0,0,0,0,0,0,6]},1);
+  return dino?.taming || {
+    diet:'carnivore', preferredKibble:'Regular Kibble', foodBase:fallbackFood,
+    foodDrainPerSecond:Math.max(0.06, fallbackFood/7200), torporDepletionRate:Math.max(0.15, Math.sqrt(fallbackTorpor)/22), tamingAffinityBase:Math.max(120, fallbackFood/6), affinityPerLevel:6
+  };
+}
+
 function tamingDietForDino(dino){
-  const name=normalizeLookupName(dino?.name);
-  if(SPECIAL_FOOD_HINTS.some(h=>name.includes(h))) return 'special';
-  if(PISCIVORE_HINTS.some(h=>name.includes(h))) return 'piscivore';
-  if(HERBIVORE_HINTS.some(h=>name.includes(h))) return 'herbivore';
-  if(name.includes('bear') || name.includes('compy') || name.includes('mesopithecus') || name.includes('sinomacrops')) return 'omnivore';
-  return 'carnivore';
+  return tamingProfileForDino(dino).diet || 'carnivore';
 }
 
 function tamingTorporForLevel(dino,level){
@@ -828,14 +835,43 @@ function tamingHealthForLevel(dino,level){
 }
 
 function tamingRequiredAffinity(dino,level){
-  const baseFood=Number(dino.base[3]) || 1200;
-  const levelFactor=1+(Math.max(1,level)-1)*0.018;
-  return Math.max(80,(baseFood/20)*levelFactor);
+  const profile=tamingProfileForDino(dino);
+  const base=Number(profile.tamingAffinityBase) || Math.max(120,(Number(dino.base[3])||1200)/6);
+  const perLevel=Number(profile.affinityPerLevel) || Math.max(3,base*0.025);
+  return Math.max(30,base+(Math.max(1,level)-1)*perLevel);
 }
 
-function tamingTorporDrainPerMinute(dino,level){
-  const maxTorpor=tamingTorporForLevel(dino,level);
-  return Math.max(18,Math.sqrt(maxTorpor)*7.5);
+function tamingTorporDrainPerSecond(dino){
+  return Math.max(0,Number(tamingProfileForDino(dino).torporDepletionRate) || 0.25);
+}
+
+function tamingFoodDrainPerSecond(dino){
+  return Math.max(0.01,Number(tamingProfileForDino(dino).foodDrainPerSecond) || 0.15);
+}
+
+function weaponTorporPerShot(weapon,quality,headMult){
+  return (weapon.torporInstant + weapon.torporOverTime) * quality * headMult;
+}
+
+function simulateKnockout(maxTorpor,weapon,quality,headMult,secondsBetweenHits,drainPerSecond){
+  let torpor=0;
+  let time=0;
+  let shots=0;
+  const perShot=weaponTorporPerShot(weapon,quality,headMult);
+  const interval=Math.max(0.1,secondsBetweenHits);
+  while(torpor < maxTorpor && shots < 10000){
+    torpor += perShot;
+    shots++;
+    if(torpor >= maxTorpor) break;
+    time += interval;
+    torpor = Math.max(0,torpor - drainPerSecond*interval);
+  }
+  return {shots,time:shots ? time + weapon.reload : 0, perShot};
+}
+
+function tamingEffectivenessForFood(amount,foodTier){
+  const lossPerBite=Math.max(0.35,1.05-(foodTier*0.08));
+  return Math.max(0,Math.round(100-(Math.max(0,amount-1)*lossPerBite)));
 }
 
 function formatTime(seconds){
@@ -856,6 +892,8 @@ function updateTamingRight(){
   const d=tamingDino;
   const draft=tamingDraft;
 
+  const profile=tamingProfileForDino(d);
+  const dietIcon=profile.diet === 'herbivore' ? 'Mejoberry.png' : profile.diet === 'piscivore' ? 'Raw_Fish_Meat.png' : profile.diet === 'special' ? 'Sweet_Vegetable_Cake.png' : 'Raw_Meat.png';
   const hero=el('section','taming-hero');
   hero.innerHTML=`
     <div>
@@ -863,7 +901,7 @@ function updateTamingRight(){
       <h2>${d.name}</h2>
       <p>Dododex-style planning for knockout shots, torpor upkeep, food, and creature base stats.</p>
     </div>
-    <div class="taming-creature-mark">${tamingDietForDino(d)==='herbivore'?'🌿':tamingDietForDino(d)==='piscivore'?'🐟':tamingDietForDino(d)==='special'?'⭐':'🦖'}</div>
+    <div class="taming-creature-mark">${assetImg(dietIcon, profile.diet + ' diet')}</div>
   `;
   right.appendChild(hero);
 
@@ -873,6 +911,7 @@ function updateTamingRight(){
     <label><span>Taming Speed</span><input id="tame-speed" type="number" min="0.1" step="0.1" value="${draft.tamingSpeed}"></label>
     <label><span>Food Drain</span><input id="tame-food-drain" type="number" min="0.1" step="0.1" value="${draft.foodDrain}"></label>
     <label><span>Weapon Quality %</span><input id="tame-quality" type="number" min="1" step="1" value="${draft.weaponQuality}"></label>
+    <label><span>Seconds Between Hits</span><input id="tame-hit-gap" type="range" min="0.5" max="12" step="0.5" value="${draft.secondsBetweenHits}"><strong id="tame-hit-gap-value">${draft.secondsBetweenHits}s</strong></label>
     <label class="toggle-row"><span>Headshots available</span><input id="tame-headshots" type="checkbox" ${draft.headshots?'checked':''}></label>
   `;
   right.appendChild(controls);
@@ -896,40 +935,49 @@ function updateTamingRight(){
     draft.tamingSpeed=Math.max(0.1,+qs('#tame-speed',controls).value||1);
     draft.foodDrain=Math.max(0.1,+qs('#tame-food-drain',controls).value||1);
     draft.weaponQuality=Math.max(1,+qs('#tame-quality',controls).value||100);
+    draft.secondsBetweenHits=Math.max(0.5,+qs('#tame-hit-gap',controls).value||5);
+    qs('#tame-hit-gap-value',controls).textContent=`${draft.secondsBetweenHits}s`;
     draft.headshots=qs('#tame-headshots',controls).checked;
 
+    const profile=tamingProfileForDino(d);
     const maxTorpor=tamingTorporForLevel(d,draft.level);
     const estHealth=tamingHealthForLevel(d,draft.level);
-    const drainPerMin=tamingTorporDrainPerMinute(d,draft.level);
-    const koSafeWindow=(maxTorpor*0.45)/(drainPerMin/60);
+    const torporDrainPerSecond=tamingTorporDrainPerSecond(d);
+    const drainPerMin=torporDrainPerSecond*60;
+    const foodDrainPerSecond=tamingFoodDrainPerSecond(d)*draft.foodDrain;
+    const koSafeWindow=maxTorpor/Math.max(0.01,torporDrainPerSecond);
     const affinityNeeded=tamingRequiredAffinity(d,draft.level)/draft.tamingSpeed;
     const diet=tamingDietForDino(d);
-    const foods=TAMING_FOODS.filter(f=>diet === 'omnivore' ? !f.diet.includes('special') : f.diet.includes(diet)).sort((a,b)=>b.tier-a.tier || b.affinity-a.affinity).slice(0,8);
+    const foods=TAMING_FOODS.filter(f=>diet === 'omnivore' ? !f.diets.includes('special') : f.diets.includes(diet)).sort((a,b)=>{
+      const preferred=(a.name===profile.preferredKibble ? -1000 : 0) - (b.name===profile.preferredKibble ? -1000 : 0);
+      return preferred || b.tier-a.tier || b.affinity-a.affinity;
+    }).slice(0,8);
 
     results.innerHTML='';
     const summary=el('section','taming-card taming-summary-grid');
     summary.innerHTML=`
       <div><span>Max Torpor</span><strong>${Math.round(maxTorpor).toLocaleString()}</strong><small>Base ${formatStatValue(d.base[7],7)} + level torpor</small></div>
       <div><span>Est. Health</span><strong>${Math.round(estHealth).toLocaleString()}</strong><small>Uses ${STATS[0]} base stat</small></div>
-      <div><span>Torpor Drain</span><strong>${Math.round(drainPerMin)}/min</strong><small>Approx. species-scaled drain</small></div>
-      <div><span>KO Buffer</span><strong>${formatTime(koSafeWindow)}</strong><small>Time before 45% torpor drains</small></div>
+      <div><span>Torpor Drain</span><strong>${drainPerMin.toFixed(drainPerMin < 10 ? 1 : 0)}/min</strong><small>${torporDrainPerSecond.toFixed(3)} torpor per second</small></div>
+      <div><span>Unconscious Timer</span><strong>${formatTime(koSafeWindow)}</strong><small>Time from full torpor to wake-up</small></div>
     `;
     results.appendChild(summary);
 
     const weaponCard=el('section','taming-card');
     weaponCard.appendChild(el('h3','','Weapons & Ammunition'));
-    const weaponGrid=el('div','taming-grid');
+    const weaponGrid=el('div','taming-weapon-scroller');
     TAMING_WEAPONS.forEach(w=>{
       const quality=draft.weaponQuality/100;
       const headMult=draft.headshots && w.headshot ? 3 : 1;
-      const torporPer=w.torpor*quality*headMult;
+      const ko=simulateKnockout(maxTorpor,w,quality,headMult,draft.secondsBetweenHits,torporDrainPerSecond);
+      const torporPer=ko.perShot;
       const damagePer=w.damage*quality*headMult;
-      const shots=Math.max(1,Math.ceil(maxTorpor/torporPer));
+      const shots=ko.shots;
       const totalDamage=shots*damagePer;
       const risk=totalDamage>estHealth*0.75 ? 'danger' : (totalDamage>estHealth*0.45 ? 'warn' : 'safe');
-      const row=el('article',`taming-item ${risk}`);
+      const row=el('article',`taming-item weapon ${risk}`);
       row.innerHTML=`
-        <div class="asset-icon">${w.icon}</div>
+        <div class="asset-icon weapon-pair">${assetImg(w.asset,w.name)}${assetImg(w.ammoAsset,w.ammo)}</div>
         <div class="taming-item-main">
           <strong>${w.name}</strong>
           <span>${w.ammo}</span>
@@ -937,7 +985,7 @@ function updateTamingRight(){
         </div>
         <div class="taming-metric"><strong>${shots}</strong><span>shots</span></div>
         <div class="taming-metric"><strong>${Math.round(torporPer)}</strong><span>torpor/shot</span></div>
-        <div class="taming-metric"><strong>${formatTime(shots*w.reload)}</strong><span>fire time</span></div>
+        <div class="taming-metric"><strong>${formatTime(ko.time)}</strong><span>KO time</span></div>
       `;
       weaponGrid.appendChild(row);
     });
@@ -946,38 +994,38 @@ function updateTamingRight(){
 
     const narcCard=el('section','taming-card');
     narcCard.appendChild(el('h3','','Narcotics Needed'));
-    const longestFoodSeconds=foods.length ? Math.max(...foods.map(f=>Math.ceil(affinityNeeded/f.affinity)*f.interval/draft.foodDrain)) : 0;
-    const torporToHold=Math.max(0,(longestFoodSeconds/60*drainPerMin)-maxTorpor*0.55);
+    const longestFoodSeconds=foods.length ? Math.max(...foods.map(f=>Math.ceil(affinityNeeded/f.affinity)*(f.food/foodDrainPerSecond))) : 0;
+    const torporToHold=Math.max(0,(longestFoodSeconds*torporDrainPerSecond)-maxTorpor);
     const narcGrid=el('div','taming-grid compact');
     TAMING_NARCOTICS.forEach(n=>{
       const amount=Math.ceil(torporToHold/n.torpor);
       const stacks=Math.ceil(amount/n.stack);
       const row=el('article','taming-item');
-      row.innerHTML=`<div class="asset-icon">${n.icon}</div><div class="taming-item-main"><strong>${n.name}</strong><span>${n.torpor} torpor each</span></div><div class="taming-metric"><strong>${amount}</strong><span>needed</span></div><div class="taming-metric"><strong>${stacks}</strong><span>stacks</span></div>`;
+      row.innerHTML=`<div class="asset-icon">${assetImg(n.asset,n.name)}</div><div class="taming-item-main"><strong>${n.name}</strong><span>${n.torpor} torpor each</span></div><div class="taming-metric"><strong>${amount}</strong><span>needed</span></div><div class="taming-metric"><strong>${stacks}</strong><span>stacks</span></div>`;
       narcGrid.appendChild(row);
     });
     narcCard.appendChild(narcGrid);
     results.appendChild(narcCard);
 
     const foodCard=el('section','taming-card');
-    foodCard.appendChild(el('h3','',`Food (${diet[0].toUpperCase()+diet.slice(1)} Estimate)`));
+    foodCard.appendChild(el('h3','',`Food (${diet[0].toUpperCase()+diet.slice(1)})`));
     const foodGrid=el('div','taming-grid');
     foods.forEach(f=>{
       const amount=Math.ceil(affinityNeeded/f.affinity);
-      const timeSeconds=amount*f.interval/draft.foodDrain;
+      const timeSeconds=amount*(f.food/foodDrainPerSecond);
       const spoilBuffer=f.spoil ? Math.max(0,Math.ceil(timeSeconds/f.spoil)-1) : 0;
       const row=el('article','taming-item food');
       row.innerHTML=`
-        <div class="asset-icon">${f.icon}</div>
-        <div class="taming-item-main"><strong>${f.name}</strong><span>${f.affinity} affinity · ${f.interval}s bite</span><small>${spoilBuffer ? `Bring +${spoilBuffer} for spoilage buffer.` : 'No extra spoilage buffer estimated.'}</small></div>
+        <div class="asset-icon">${assetImg(f.asset,f.name)}</div>
+        <div class="taming-item-main"><strong>${f.name}</strong><span>${f.affinity} affinity · ${f.food} food</span><small>${spoilBuffer ? `Bring +${spoilBuffer} for spoilage buffer.` : 'No extra spoilage buffer estimated.'}</small></div>
         <div class="taming-metric"><strong>${amount}</strong><span>food</span></div>
         <div class="taming-metric"><strong>${formatTime(timeSeconds)}</strong><span>time</span></div>
-        <div class="taming-metric"><strong>${Math.max(0,Math.round(100-(amount*f.tier*1.6))) }%</strong><span>effectiveness</span></div>
+        <div class="taming-metric"><strong>${tamingEffectivenessForFood(amount,f.tier)}%</strong><span>effectiveness</span></div>
       `;
       foodGrid.appendChild(row);
     });
     foodCard.appendChild(foodGrid);
-    const note=el('p','taming-note','Food preferences vary by creature and game version. ASEM uses the selected dino’s data.js base Food and Torpor stats plus broad ARK diet categories so you can compare resources quickly, then adjust for special passive tames or server mods.');
+    const note=el('p','taming-note','Food and narcotic estimates use each creature’s data.js taming profile: base Food, food-drain rate, torpor-depletion rate, diet, preferred kibble tier, and affinity scaling. Special/passive tames still require in-game judgment.');
     foodCard.appendChild(note);
     results.appendChild(foodCard);
   }
