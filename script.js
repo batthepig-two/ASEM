@@ -310,20 +310,49 @@ function eggHatchFormulaValue(value,index){
   return index === 5 ? value/100 : value;
 }
 
-function calculateEggHatchPoints(creatureName,statName,inGameValue){
-  const dino=findDinoByName(creatureName);
-  const index=statIndexForName(statName);
-  const value=eggHatchFormulaValue(Number(inGameValue),index);
-  if(!isEggHatchCreature(dino) || index === null || !Number.isFinite(value) || value <= 0) return null;
+const MAX_EGG_HATCH_POINTS = 250;
 
+function eggHatchStatConfig(dino,index){
   const baseValue=eggHatchFormulaValue(Number(dino.base[index]),index);
   const wildIncrease=Number(dino.wild[index])/Number(dino.base[index]);
   const tameAdd=eggHatchFormulaValue(tamingAddForStat(dino,index),index);
   const tameMult=tamingMultForStat(dino,index);
   if(!Number.isFinite(baseValue) || baseValue <= 0 || !Number.isFinite(wildIncrease) || wildIncrease <= 0 || !Number.isFinite(tameAdd) || !Number.isFinite(tameMult) || tameMult <= -1) return null;
 
-  const rawLevels=(((value/(1+tameMult))-tameAdd)-baseValue)/(baseValue*wildIncrease);
-  return Number.isFinite(rawLevels) ? Math.max(0,Math.round(rawLevels)) : null;
+  return {
+    baseValue,
+    wildIncrease,
+    tameAdd,
+    tameMult,
+    stepValue: baseValue * wildIncrease * (1 + tameMult),
+  };
+}
+
+function eggHatchTestValue({baseValue,wildIncrease,tameAdd,tameMult},points){
+  return (baseValue * (1 + (points * wildIncrease)) + tameAdd) * (1 + tameMult);
+}
+
+function calculateEggHatchPoints(creatureName,statName,inGameValue){
+  const dino=findDinoByName(creatureName);
+  const index=statIndexForName(statName);
+  const value=eggHatchFormulaValue(Number(inGameValue),index);
+  if(!isEggHatchCreature(dino) || index === null || !Number.isFinite(value) || value <= 0) return null;
+
+  const config=eggHatchStatConfig(dino,index);
+  if(!config || !Number.isFinite(config.stepValue) || config.stepValue <= 0) return null;
+
+  let closestPoint=0;
+  let smallestDifference=Infinity;
+  for(let points=0; points<=MAX_EGG_HATCH_POINTS; points++){
+    const testValue=eggHatchTestValue(config,points);
+    const difference=Math.abs(value-testValue);
+    if(difference < smallestDifference){
+      smallestDifference=difference;
+      closestPoint=points;
+    }
+  }
+
+  return closestPoint;
 }
 
 function calculateDisplayedStatPoints(statValue,dino,index){
