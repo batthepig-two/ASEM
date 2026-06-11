@@ -384,6 +384,13 @@ function valueForWildPoints(dino,index,points){
 }
 
 function valueForHatchedPoints(dino,index,points){
+  if(isEggHatchCreature(dino)){
+    const config=eggHatchStatConfig(dino,index);
+    if(!config) return NaN;
+    const value=eggHatchTestValue(config,points);
+    return index === 5 ? value*100 : value;
+  }
+
   const wildValue=valueForWildPoints(dino,index,points);
   const tamedBaseHealthMultiplier=tamedBaseHealthMultiplierForStat(dino,index);
   return (wildValue * tamedBaseHealthMultiplier + tamingAddForStat(dino,index)) * (1 + tamingMultForStat(dino,index));
