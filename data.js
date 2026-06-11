@@ -1173,4 +1173,4 @@ const UNIQUE_DINOS = DINOS_RAW.map(d => ({
   tameAdd: d.ta || DEFAULT_TAME_ADD,
   tameMult: d.tm || DEFAULT_TAME_MULT,
   tamedBaseHealthMultiplier: d.tbhm || 1,
-})).sort((a,b) => a.name.localeCompare(b.name));
+})).sort((a,b) => a.name.localeCompare(b.name)); 
