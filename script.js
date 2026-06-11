@@ -251,32 +251,103 @@ function tamedBaseHealthMultiplierForStat(dino,index){
     : 1;
 }
 
-function calculateWildPoints(statValue,dino,index){
-  const value=Number(statValue);
-  const base=dino.base[index];
-  const perPoint=dino.wild[index];
-  if(!Number.isFinite(value) || value <= 0 || !Number.isFinite(perPoint) || perPoint <= 0) return null;
-  return Math.max(0,Math.round((value-base)/perPoint));
+function calculateWildPoints(finalValue,base,wildStatIncrease,tameAdd=0){
+  const value=Number(finalValue);
+  const baseValue=Number(base);
+  const pointIncrease=Number(wildStatIncrease);
+  const additiveBonus=Number(tameAdd) || 0;
+  if(!Number.isFinite(value) || value <= 0 || !Number.isFinite(baseValue) || baseValue <= 0 || !Number.isFinite(pointIncrease) || pointIncrease <= 0) return null;
+
+  const rawPoints=(value-additiveBonus-baseValue)/pointIncrease;
+
+  return Number.isFinite(rawPoints) ? Math.max(0,Math.round(rawPoints)) : null;
+}
+
+const EGG_HATCH_CREATURE_NAMES = new Set([
+  'Deinonychus',
+  'Magmasaur',
+  'Rock Drake',
+  'Wyvern (Fire)',
+  'Wyvern (Ice)',
+  'Wyvern (Lightning)',
+  'Wyvern (Poison)',
+]);
+
+const EGG_HATCH_CREATURE_ALIASES = {
+  wyvern: 'Wyvern (Fire)',
+  'fire wyvern': 'Wyvern (Fire)',
+  'ice wyvern': 'Wyvern (Ice)',
+  'lightning wyvern': 'Wyvern (Lightning)',
+  'poison wyvern': 'Wyvern (Poison)',
+};
+
+const STAT_INDEX_BY_NAME = STATS.reduce((lookup,stat,index) => {
+  lookup[stat.toLowerCase()] = index;
+  return lookup;
+},{});
+STAT_INDEX_BY_NAME.damage = 5;
+STAT_INDEX_BY_NAME['melee damage'] = 5;
+
+function normalizeLookupName(name){
+  return String(name || '').trim().toLowerCase();
+}
+
+function findDinoByName(creatureName){
+  const lookupName=normalizeLookupName(creatureName);
+  const alias=EGG_HATCH_CREATURE_ALIASES[lookupName];
+  return UNIQUE_DINOS.find(d => d.name === alias || normalizeLookupName(d.name) === lookupName) || null;
+}
+
+function statIndexForName(statName){
+  return STAT_INDEX_BY_NAME[normalizeLookupName(statName)] ?? null;
+}
+
+function isEggHatchCreature(dino){
+  return !!dino && EGG_HATCH_CREATURE_NAMES.has(dino.name);
+}
+
+function eggHatchFormulaValue(value,index){
+  return index === 5 ? value/100 : value;
+}
+
+function calculateEggHatchPoints(creatureName,statName,inGameValue){
+  const dino=findDinoByName(creatureName);
+  const index=statIndexForName(statName);
+  const value=eggHatchFormulaValue(Number(inGameValue),index);
+  if(!isEggHatchCreature(dino) || index === null || !Number.isFinite(value) || value <= 0) return null;
+
+  const baseValue=eggHatchFormulaValue(Number(dino.base[index]),index);
+  const wildIncrease=Number(dino.wild[index])/Number(dino.base[index]);
+  const tameAdd=eggHatchFormulaValue(tamingAddForStat(dino,index),index);
+  const tameMult=tamingMultForStat(dino,index);
+  if(!Number.isFinite(baseValue) || baseValue <= 0 || !Number.isFinite(wildIncrease) || wildIncrease <= 0 || !Number.isFinite(tameAdd) || !Number.isFinite(tameMult) || tameMult <= -1) return null;
+
+  const rawLevels=(((value/(1+tameMult))-tameAdd)-baseValue)/(baseValue*wildIncrease);
+  return Number.isFinite(rawLevels) ? Math.max(0,Math.round(rawLevels)) : null;
+}
+
+function calculateDisplayedStatPoints(statValue,dino,index){
+  return calculateWildPoints(statValue,dino.base[index],dino.wild[index]);
 }
 
 function calculateHatchedPoints(statValue,dino,index){
+  if(isEggHatchCreature(dino)) return calculateEggHatchPoints(dino.name,STATS[index],statValue);
+
   const value=Number(statValue);
-  const base=dino.base[index];
-  const perPoint=dino.wild[index];
-  if(!Number.isFinite(value) || value <= 0 || !Number.isFinite(base) || base <= 0 || !Number.isFinite(perPoint) || perPoint <= 0) return null;
-  const tameAdd=tamingAddForStat(dino,index);
   const tameMult=tamingMultForStat(dino,index);
   const tamedBaseHealthMultiplier=tamedBaseHealthMultiplierForStat(dino,index);
-  const preTameValue=((value/(1+tameMult))-tameAdd)/tamedBaseHealthMultiplier;
-  return Math.max(0,Math.round((preTameValue-base)/perPoint));
+  if(!Number.isFinite(value) || value <= 0 || !Number.isFinite(tameMult) || tameMult <= -1 || !Number.isFinite(tamedBaseHealthMultiplier) || tamedBaseHealthMultiplier <= 0) return null;
+
+  const preTameValue=value/(1+tameMult)/tamedBaseHealthMultiplier;
+  return calculateWildPoints(preTameValue,dino.base[index],dino.wild[index],tamingAddForStat(dino,index)/tamedBaseHealthMultiplier);
 }
 
 function calculateStatPoints(statValue,dino,index,mode){
-  return mode === 'hatched' ? calculateHatchedPoints(statValue,dino,index) : calculateWildPoints(statValue,dino,index);
+  return mode === 'hatched' ? calculateHatchedPoints(statValue,dino,index) : calculateDisplayedStatPoints(statValue,dino,index);
 }
 
 function inferWildPoints(statValue,dino,index){
-  return calculateWildPoints(statValue,dino,index);
+  return calculateDisplayedStatPoints(statValue,dino,index);
 }
 
 function valueForWildPoints(dino,index,points){
